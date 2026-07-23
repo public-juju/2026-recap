@@ -1,20 +1,121 @@
 // ====================== State ======================
 const STORAGE_KEY = "recap2026_v1";
+const CATEGORIES = ["dramas", "movies", "shows", "travels", "performances"];
+const TABLE = "recap_items";
 
-function loadState() {
+const hasSupabaseConfig =
+  typeof SUPABASE_URL === "string" && SUPABASE_URL.trim() &&
+  typeof SUPABASE_ANON_KEY === "string" && SUPABASE_ANON_KEY.trim() &&
+  window.supabase;
+
+const sb = hasSupabaseConfig ? window.supabase.createClient(SUPABASE_URL.trim(), SUPABASE_ANON_KEY.trim()) : null;
+
+let state = { dramas: [], movies: [], shows: [], travels: [], performances: [] };
+
+function emptyState() { return { dramas: [], movies: [], shows: [], travels: [], performances: [] }; }
+
+function loadLocalState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
-  } catch (e) { console.warn("state load failed", e); }
+  } catch (e) { console.warn("local state load failed", e); }
   return JSON.parse(JSON.stringify(INITIAL_DATA));
 }
 
-let state = loadState();
-
-function saveState() {
+function saveLocalCache() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-  catch (e) { console.warn("state save failed", e); }
+  catch (e) { console.warn("local cache save failed", e); }
 }
+
+function buildStateFromRows(rows) {
+  const next = emptyState();
+  rows.forEach(row => {
+    if (!next[row.category]) next[row.category] = [];
+    next[row.category].push(row.payload);
+  });
+  return next;
+}
+
+async function seedSupabase() {
+  const rows = [];
+  CATEGORIES.forEach(cat => {
+    (INITIAL_DATA[cat] || []).forEach(item => {
+      rows.push({ id: item.id, category: cat, payload: item });
+    });
+  });
+  const { error } = await sb.from(TABLE).insert(rows);
+  if (error) throw error;
+}
+
+function setSyncStatus(text) {
+  const el = document.getElementById("sync-status");
+  if (el) el.textContent = text;
+}
+
+async function initState() {
+  if (sb) {
+    try {
+      const { data, error } = await sb.from(TABLE).select("*");
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        await seedSupabase();
+        state = JSON.parse(JSON.stringify(INITIAL_DATA));
+      } else {
+        state = buildStateFromRows(data);
+      }
+      setSyncStatus("☁️ Supabase 연결됨");
+      saveLocalCache();
+      return;
+    } catch (e) {
+      console.warn("Supabase load failed, falling back to local storage", e);
+      setSyncStatus("⚠️ 연결 실패 · 로컬 저장");
+    }
+  } else {
+    setSyncStatus("💾 로컬 저장 모드");
+  }
+  state = loadLocalState();
+}
+
+// Persist a single item after add/edit/status-change.
+async function persistUpsert(category, item) {
+  saveLocalCache();
+  if (!sb) return;
+  try {
+    const { error } = await sb.from(TABLE).upsert({
+      id: item.id, category, payload: item, updated_at: new Date().toISOString()
+    });
+    if (error) throw error;
+  } catch (e) {
+    console.warn("supabase upsert failed", e);
+    setSyncStatus("⚠️ 저장 실패 · 로컬만 반영됨");
+  }
+}
+
+// Persist a deletion.
+async function persistDelete(category, id) {
+  saveLocalCache();
+  if (!sb) return;
+  try {
+    const { error } = await sb.from(TABLE).delete().eq("id", id);
+    if (error) throw error;
+  } catch (e) {
+    console.warn("supabase delete failed", e);
+    setSyncStatus("⚠️ 삭제 실패 · 로컬만 반영됨");
+  }
+}
+
+window.resetAllData = async function resetAllData() {
+  if (sb) {
+    try {
+      await sb.from(TABLE).delete().neq("id", "__never__");
+      await seedSupabase();
+      return;
+    } catch (e) {
+      console.warn("supabase reset failed, clearing local only", e);
+    }
+  }
+  localStorage.removeItem(STORAGE_KEY);
+};
 
 function uid(prefix) {
   return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -31,7 +132,7 @@ const TABS = [
 
 let activeTab = "dramas";
 
-const STATUS_COLOR = { "완료": "var(--green)", "보는중": "var(--amber)", "중도하차": "var(--red)" };
+const STATUS_COLOR = { "완료": "var(--accent-soft)", "보는중": "var(--mint)", "중도하차": "var(--deep)" };
 const STATUS_ORDER = ["보는중", "완료", "중도하차"];
 
 // ====================== Poster placeholder ======================
@@ -249,7 +350,7 @@ function renderMoviesTab() {
 
 function movieCard(item) {
   const bg = item.poster ? "" : `style="background:${posterGradient(item.title)}"`;
-  const badgeColor = item.type === "OTT" ? "var(--amber)" : "var(--red)";
+  const badgeColor = item.type === "OTT" ? "var(--accent-soft)" : "var(--deep)";
   return `
   <div class="stub" data-card-id="${item.id}">
     <span class="badge" style="background:${badgeColor}">${item.order}. ${escapeHtml(item.type)}</span>
@@ -283,7 +384,7 @@ function fmtDateRange(a, b) {
 }
 
 function travelRow(t) {
-  const tagColor = t.international ? "var(--red)" : "var(--amber)";
+  const tagColor = t.international ? "var(--deep)" : "var(--accent)";
   return `
   <div class="list-stub" data-card-id="${t.id}">
     <div class="lead">
@@ -315,7 +416,7 @@ function perfRow(p) {
   <div class="list-stub" data-card-id="${p.id}">
     <div class="lead">
       <div class="num">${p.date.slice(5).replace("-", "/")}</div>
-      <div class="tag" style="background:${p.solo ? "var(--amber)" : "var(--green)"}">${p.solo ? "혼자" : "동행"}</div>
+      <div class="tag" style="background:${p.solo ? "var(--accent)" : "var(--deep)"}">${p.solo ? "혼자" : "동행"}</div>
     </div>
     <div class="body">
       <div class="title">${p.link ? `<a href="${escapeAttr(p.link)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">${escapeHtml(p.title)} ↗</a>` : escapeHtml(p.title)}</div>
@@ -342,15 +443,17 @@ function attachEvents() {
   });
   root.querySelectorAll('[data-action="setStatus"]').forEach(btn => {
     btn.addEventListener("click", () => {
-      const item = state[btn.dataset.key].find(x => x.id === btn.dataset.id);
-      if (item) { item.status = btn.dataset.status; saveState(); render(); }
+      const key = btn.dataset.key;
+      const item = state[key].find(x => x.id === btn.dataset.id);
+      if (item) { item.status = btn.dataset.status; persistUpsert(key, item); render(); }
     });
   });
   root.querySelectorAll('[data-action="delete"]').forEach(btn => {
     btn.addEventListener("click", () => {
       if (!confirm("이 항목을 삭제할까요?")) return;
-      state[btn.dataset.key] = state[btn.dataset.key].filter(x => x.id !== btn.dataset.id);
-      saveState(); render();
+      const key = btn.dataset.key, id = btn.dataset.id;
+      state[key] = state[key].filter(x => x.id !== id);
+      persistDelete(key, id); render();
     });
   });
   root.querySelectorAll('[data-action="edit"]').forEach(btn => {
@@ -406,7 +509,7 @@ function openEditModal(key, id) {
       item.cast = document.getElementById("f-cast").value.trim();
       item.genre = document.getElementById("f-genre").value.trim();
       item.synopsis = document.getElementById("f-syn").value.trim();
-      saveState(); closeModal(); render();
+      persistUpsert(key, item); closeModal(); render();
     };
   } else if (key === "movies") {
     openModal(`
@@ -429,7 +532,7 @@ function openEditModal(key, id) {
       item.type = document.getElementById("f-type").value;
       item.cast = document.getElementById("f-cast").value.trim();
       item.synopsis = document.getElementById("f-syn").value.trim();
-      saveState(); closeModal(); render();
+      persistUpsert(key, item); closeModal(); render();
     };
   } else if (key === "travels") {
     openModal(`
@@ -456,7 +559,7 @@ function openEditModal(key, id) {
       item.distanceKm = Number(document.getElementById("f-km").value) || 0;
       item.international = document.getElementById("f-intl").value === "true";
       item.solo = /^혼자$/.test(item.companions.trim());
-      saveState(); closeModal(); render();
+      persistUpsert(key, item); closeModal(); render();
     };
   } else if (key === "performances") {
     openModal(`
@@ -483,7 +586,7 @@ function openEditModal(key, id) {
       item.companions = document.getElementById("f-comp").value.trim();
       item.link = document.getElementById("f-link").value.trim();
       item.solo = /^혼자$/.test(item.companions.trim());
-      saveState(); closeModal(); render();
+      persistUpsert(key, item); closeModal(); render();
     };
   }
 }
@@ -504,8 +607,9 @@ function openAddModal(key) {
     document.getElementById("modal-save").onclick = () => {
       const title = document.getElementById("f-title").value.trim();
       if (!title) return;
-      state[key].push({ id: uid(key[0]), title, status: "보는중" });
-      saveState(); closeModal(); render();
+      const newItem = { id: uid(key[0]), title, status: "보는중" };
+      state[key].push(newItem);
+      persistUpsert(key, newItem); closeModal(); render();
     };
   } else if (key === "movies") {
     openModal(`
@@ -522,8 +626,9 @@ function openAddModal(key) {
       const title = document.getElementById("f-title").value.trim();
       if (!title) return;
       const order = state.movies.length ? Math.max(...state.movies.map(m => m.order)) + 1 : 1;
-      state.movies.push({ id: uid("m"), order, title, type: document.getElementById("f-type").value });
-      saveState(); closeModal(); render();
+      const newItem = { id: uid("m"), order, title, type: document.getElementById("f-type").value };
+      state.movies.push(newItem);
+      persistUpsert("movies", newItem); closeModal(); render();
     };
   } else if (key === "travels") {
     openModal(`
@@ -547,14 +652,15 @@ function openAddModal(key) {
       if (!destination || !startDate) return;
       const endDate = document.getElementById("f-end").value || startDate;
       const companions = document.getElementById("f-comp").value.trim() || "혼자";
-      state.travels.push({
+      const newItem = {
         id: uid("t"), destination, startDate, endDate,
         transport: document.getElementById("f-transport").value.trim(),
         companions, solo: /^혼자$/.test(companions),
         distanceKm: Number(document.getElementById("f-km").value) || 0,
         international: document.getElementById("f-intl").value === "true"
-      });
-      saveState(); closeModal(); render();
+      };
+      state.travels.push(newItem);
+      persistUpsert("travels", newItem); closeModal(); render();
     };
   } else if (key === "performances") {
     openModal(`
@@ -577,15 +683,16 @@ function openAddModal(key) {
       const date = document.getElementById("f-date").value;
       if (!title || !date) return;
       const companions = document.getElementById("f-comp").value.trim() || "혼자";
-      state.performances.push({
+      const newItem = {
         id: uid("p"), title, date,
         venue: document.getElementById("f-venue").value.trim(),
         price: Number(document.getElementById("f-price").value) || 0,
         seat: document.getElementById("f-seat").value.trim(),
         companions, solo: /^혼자$/.test(companions),
         link: document.getElementById("f-link").value.trim()
-      });
-      saveState(); closeModal(); render();
+      };
+      state.performances.push(newItem);
+      persistUpsert("performances", newItem); closeModal(); render();
     };
   }
 }
@@ -599,5 +706,10 @@ function updateClock() {
 }
 
 // ====================== Init ======================
-updateClock();
-render();
+async function boot() {
+  updateClock();
+  setSyncStatus("연결 확인 중…");
+  await initState();
+  render();
+}
+boot();

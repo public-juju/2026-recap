@@ -1,4 +1,4 @@
-const CACHE_NAME = "recap2026-shell-v1";
+const CACHE_NAME = "recap2026-shell-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -27,18 +27,24 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// App-shell files: cache-first (fast offline load).
-// Everything else (e.g. Supabase/TMDB API calls, CDN fonts): network-first, no caching of responses,
-// so data always stays fresh.
+// Network-first for same-origin app files: always fetch the latest version when
+// online, and only fall back to the cached copy when offline. This is important
+// while the app is still actively changing — a cache-first strategy would keep
+// serving an old version forever even after new files are deployed.
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-  const url = new URL(req.url);
-  const isSameOrigin = url.origin === self.location.origin;
+  if (req.method !== "GET") return;
 
-  if (isSameOrigin && APP_SHELL.some((p) => url.pathname.endsWith(p.replace("./", "/")))) {
-    event.respondWith(
-      caches.match(req).then((cached) => cached || fetch(req))
-    );
-  }
-  // Non-shell requests (API calls, fonts, images) fall through to the network normally.
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return; // Supabase/TMDB/Wikipedia/fonts: go straight to network
+
+  event.respondWith(
+    fetch(req)
+      .then((res) => {
+        const resClone = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
+        return res;
+      })
+      .catch(() => caches.match(req))
+  );
 });

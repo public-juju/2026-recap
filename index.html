@@ -17,6 +17,7 @@
       </div>
       <div style="display:flex; align-items:flex-end; gap:14px;">
         <div class="gate-clock" id="gate-clock"></div>
+        <span class="btn small" id="sync-status" style="pointer-events:none;">확인 중…</span>
         <button class="btn small" id="reset-btn" title="모든 데이터를 초기 상태로 되돌립니다">초기화</button>
       </div>
     </div>
@@ -32,12 +33,14 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
   <script src="data.js"></script>
   <script src="app.js"></script>
   <script>
-    document.getElementById("reset-btn").addEventListener("click", () => {
+    document.getElementById("reset-btn").addEventListener("click", async () => {
       if (!confirm("정말 모든 데이터를 초기 상태로 되돌릴까요? 직접 추가/수정한 내용이 모두 사라집니다.")) return;
-      localStorage.removeItem("recap2026_v1");
+      await window.resetAllData();
       location.reload();
     });
   </script>

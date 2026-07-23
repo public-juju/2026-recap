@@ -412,8 +412,11 @@ function renderPerformancesTab() {
 }
 
 function perfRow(p) {
+  const posterBg = p.poster ? "" : `style="background:${posterGradient(p.title)}"`;
+  const posterContent = p.poster ? `<img src="${escapeAttr(p.poster)}" alt="" onerror="this.style.display='none'">` : "🎫";
   return `
   <div class="list-stub" data-card-id="${p.id}">
+    <div class="poster-thumb" ${posterBg}>${posterContent}</div>
     <div class="lead">
       <div class="num">${p.date.slice(5).replace("-", "/")}</div>
       <div class="tag" style="background:${p.solo ? "var(--accent)" : "var(--deep)"}">${p.solo ? "혼자" : "동행"}</div>
@@ -483,6 +486,60 @@ document.getElementById("modal-close").addEventListener("click", closeModal);
 
 function openModal(html) { modalBody.innerHTML = html; modalOverlay.classList.add("open"); }
 
+// ====================== TMDB auto-fill ======================
+// mediaType: "tv" (dramas/shows) or "movie". Requires TMDB_API_KEY in config.js.
+async function tmdbLookup(mediaType, query) {
+  const key = (typeof TMDB_API_KEY === "string") ? TMDB_API_KEY.trim() : "";
+  if (!key) {
+    alert('config.js에 TMDB_API_KEY를 먼저 채워넣어야 자동 정보 가져오기를 쓸 수 있어요. (README 참고)');
+    return null;
+  }
+  try {
+    const searchUrl = `https://api.themoviedb.org/3/search/${mediaType}?api_key=${encodeURIComponent(key)}&language=ko-KR&query=${encodeURIComponent(query)}`;
+    const searchRes = await fetch(searchUrl);
+    const searchData = await searchRes.json();
+    if (!searchData.results || !searchData.results.length) {
+      alert(`"${query}"에 대한 검색 결과를 TMDB에서 찾지 못했어요. (한국 예능/일부 드라마는 TMDB에 없을 수 있어요)`);
+      return null;
+    }
+    const best = searchData.results[0];
+    const detailUrl = `https://api.themoviedb.org/3/${mediaType}/${best.id}?api_key=${encodeURIComponent(key)}&language=ko-KR&append_to_response=credits`;
+    const detailRes = await fetch(detailUrl);
+    const detail = await detailRes.json();
+    const cast = ((detail.credits && detail.credits.cast) || []).slice(0, 5).map(c => c.name).join(", ");
+    const broadcaster = mediaType === "tv"
+      ? (((detail.networks || [])[0] || {}).name || "")
+      : (((detail.production_companies || [])[0] || {}).name || "");
+    const poster = detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : "";
+    const synopsis = detail.overview || "";
+    return { poster, cast, broadcaster, synopsis };
+  } catch (e) {
+    console.warn("TMDB lookup failed", e);
+    alert("TMDB에서 정보를 가져오는 중 문제가 생겼어요. API 키가 올바른지 확인해주세요.");
+    return null;
+  }
+}
+
+function wireTmdbButton(mediaType, titleGetter) {
+  const btn = document.getElementById("tmdb-fill");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const query = titleGetter();
+    if (!query) return;
+    btn.disabled = true;
+    btn.textContent = "가져오는 중…";
+    const info = await tmdbLookup(mediaType, query);
+    btn.disabled = false;
+    btn.textContent = "🔎 TMDB에서 정보 가져오기";
+    if (!info) return;
+    if (info.poster) document.getElementById("f-poster").value = info.poster;
+    if (info.cast) document.getElementById("f-cast").value = info.cast;
+    if (info.synopsis) document.getElementById("f-syn").value = info.synopsis;
+    const bcField = document.getElementById("f-bc");
+    if (bcField && info.broadcaster) bcField.value = info.broadcaster;
+  });
+}
+
 // ---- Edit modal (poster/cast/synopsis/etc, shared by dramas/shows/movies; separate for travel/perf)
 function openEditModal(key, id) {
   const item = state[key].find(x => x.id === id);
@@ -491,7 +548,8 @@ function openEditModal(key, id) {
   if (key === "dramas" || key === "shows") {
     openModal(`
       <h3>${escapeHtml(item.title)} 편집</h3>
-      <div class="hint">포스터는 직접 찾은 이미지 URL을 붙여넣어 주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title + " 포스터")}" target="_blank" rel="noopener">네이버에서 포스터 검색 ↗</a></div>
+      <button class="btn small" id="tmdb-fill" style="margin-bottom:10px;">🔎 TMDB에서 정보 가져오기</button>
+      <div class="hint">TMDB(영화·TV 정보 DB)에서 포스터·출연진·줄거리를 자동으로 채워줘요. 국내 드라마 중 일부, 예능/교양은 등록이 없을 수 있어요. 안 되면 아래 링크로 직접 찾아 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
       <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
       <div class="field"><label>방송사/채널</label><input id="f-bc" value="${escapeAttr(item.broadcaster || "")}"></div>
       <div class="field"><label>${key === "dramas" ? "주연배우" : "출연진"} (쉼표로 구분)</label><input id="f-cast" value="${escapeAttr(item.cast || "")}"></div>
@@ -502,6 +560,7 @@ function openEditModal(key, id) {
         <button class="btn primary" id="modal-save">저장</button>
       </div>
     `);
+    wireTmdbButton("tv", () => item.title);
     document.getElementById("modal-cancel").onclick = closeModal;
     document.getElementById("modal-save").onclick = () => {
       item.poster = document.getElementById("f-poster").value.trim();
@@ -514,7 +573,8 @@ function openEditModal(key, id) {
   } else if (key === "movies") {
     openModal(`
       <h3>${escapeHtml(item.title)} 편집</h3>
-      <div class="hint">포스터는 직접 찾은 이미지 URL을 붙여넣어 주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title + " 포스터")}" target="_blank" rel="noopener">네이버에서 포스터 검색 ↗</a></div>
+      <button class="btn small" id="tmdb-fill" style="margin-bottom:10px;">🔎 TMDB에서 정보 가져오기</button>
+      <div class="hint">TMDB에서 포스터·주연배우·줄거리를 자동으로 채워줘요. 안 되면 아래 링크로 직접 찾아 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
       <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
       <div class="field"><label>관람 방식</label>
         <select id="f-type"><option ${item.type==="OTT"?"selected":""}>OTT</option><option ${item.type==="영화관"?"selected":""}>영화관</option></select>
@@ -526,6 +586,7 @@ function openEditModal(key, id) {
         <button class="btn primary" id="modal-save">저장</button>
       </div>
     `);
+    wireTmdbButton("movie", () => item.title);
     document.getElementById("modal-cancel").onclick = closeModal;
     document.getElementById("modal-save").onclick = () => {
       item.poster = document.getElementById("f-poster").value.trim();
@@ -564,6 +625,8 @@ function openEditModal(key, id) {
   } else if (key === "performances") {
     openModal(`
       <h3>${escapeHtml(item.title)} 편집</h3>
+      <div class="hint">포스터는 예매처나 포털에서 이미지를 찾아 URL을 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
+      <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
       <div class="field"><label>공연명</label><input id="f-title" value="${escapeAttr(item.title)}"></div>
       <div class="field"><label>날짜</label><input id="f-date" type="date" value="${item.date}"></div>
       <div class="field"><label>장소</label><input id="f-venue" value="${escapeAttr(item.venue)}"></div>
@@ -578,6 +641,7 @@ function openEditModal(key, id) {
     `);
     document.getElementById("modal-cancel").onclick = closeModal;
     document.getElementById("modal-save").onclick = () => {
+      item.poster = document.getElementById("f-poster").value.trim();
       item.title = document.getElementById("f-title").value.trim();
       item.date = document.getElementById("f-date").value;
       item.venue = document.getElementById("f-venue").value.trim();
@@ -665,6 +729,7 @@ function openAddModal(key) {
   } else if (key === "performances") {
     openModal(`
       <h3>공연 추가</h3>
+      <div class="field"><label>포스터 이미지 URL (나중에 추가해도 돼요)</label><input id="f-poster" placeholder="https://"></div>
       <div class="field"><label>공연명</label><input id="f-title" placeholder="공연명을 입력하세요"></div>
       <div class="field"><label>날짜</label><input id="f-date" type="date"></div>
       <div class="field"><label>장소</label><input id="f-venue" placeholder="공연장"></div>
@@ -685,6 +750,7 @@ function openAddModal(key) {
       const companions = document.getElementById("f-comp").value.trim() || "혼자";
       const newItem = {
         id: uid("p"), title, date,
+        poster: document.getElementById("f-poster").value.trim(),
         venue: document.getElementById("f-venue").value.trim(),
         price: Number(document.getElementById("f-price").value) || 0,
         seat: document.getElementById("f-seat").value.trim(),

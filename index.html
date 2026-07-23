@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 결산 · 드라마 · 영화 · 예능 · 공연 · 여행</title>
+<meta name="description" content="2026년 한 해 동안 본 드라마, 영화, 예능, 다녀온 공연과 여행을 기록하는 개인 결산 아카이브">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <div class="gate-header">
+      <div>
+        <div class="eyebrow">Annual Recap · 2026</div>
+        <h1>나의 2026년 결산</h1>
+        <div class="sub">드라마 · 영화 · 예능&교양 · 공연 · 여행을 한 곳에서 기록하고 돌아봐요</div>
+      </div>
+      <div style="display:flex; align-items:flex-end; gap:14px;">
+        <div class="gate-clock" id="gate-clock"></div>
+        <button class="btn small" id="reset-btn" title="모든 데이터를 초기 상태로 되돌립니다">초기화</button>
+      </div>
+    </div>
+    <div id="app-root"></div>
+  </div>
+
+  <div class="overlay" id="modal-overlay">
+    <div class="modal">
+      <div style="display:flex; justify-content:flex-end;">
+        <button class="btn small" id="modal-close">닫기</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.getElementById("reset-btn").addEventListener("click", () => {
+      if (!confirm("정말 모든 데이터를 초기 상태로 되돌릴까요? 직접 추가/수정한 내용이 모두 사라집니다.")) return;
+      localStorage.removeItem("recap2026_v1");
+      location.reload();
+    });
+  </script>
+</body>
+</html>

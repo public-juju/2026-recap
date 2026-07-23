@@ -440,12 +440,17 @@ body {
   font-size: 13px;
 }
 
-/* ---------- Performance calendar ---------- */
-.cal-nav {
+/* ---------- Performance calendar (full-year scrollable timeline) ---------- */
+.timeline {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.month-title {
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 10px;
 }
 
 .calendar {

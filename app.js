@@ -319,7 +319,7 @@ function mediaCard(item, key, emoji, bcLabel, castLabel) {
   ` : "";
   return `
   <div class="stub" data-card-id="${item.id}">
-    <div class="poster" ${bg}>${posterBlock(item, emoji)}</div>
+    <div class="poster" ${bg} data-action="detail" data-key="${key}" data-id="${item.id}">${posterBlock(item, emoji)}</div>
     <div class="tear"></div>
     <div class="info">
       <div class="title">${escapeHtml(item.title)}</div>
@@ -328,10 +328,6 @@ function mediaCard(item, key, emoji, bcLabel, castLabel) {
         ${item.cast ? `${escapeHtml(castLabel)}: ${escapeHtml(item.cast)}<br>` : ""}
         ${item.genre ? `장르: ${escapeHtml(item.genre)}` : ""}
       </div>
-      ${item.synopsis ? `
-        <button class="synopsis-toggle" data-action="toggleSyn">줄거리 보기 ▾</button>
-        <div class="synopsis">${escapeHtml(item.synopsis)}</div>
-      ` : ""}
       <div class="actions">
         ${statusButtons}${reopenBtn}
         <button class="btn small" data-action="edit" data-key="${key}" data-id="${item.id}">편집</button>
@@ -353,16 +349,12 @@ function movieCard(item) {
   const badgeColor = item.type === "OTT" ? "var(--accent-soft)" : "var(--deep)";
   return `
   <div class="stub" data-card-id="${item.id}">
-    <span class="badge" style="background:${badgeColor}">${item.order}. ${escapeHtml(item.type)}</span>
-    <div class="poster" ${bg}>${posterBlock(item, "🎬")}</div>
+    <span class="badge" style="background:${badgeColor}">${escapeHtml(item.type)}</span>
+    <div class="poster" ${bg} data-action="detail" data-key="movies" data-id="${item.id}">${posterBlock(item, "🎬")}</div>
     <div class="tear"></div>
     <div class="info">
       <div class="title">${escapeHtml(item.title)}</div>
       <div class="meta">${item.cast ? `주연배우: ${escapeHtml(item.cast)}` : ""}</div>
-      ${item.synopsis ? `
-        <button class="synopsis-toggle" data-action="toggleSyn">줄거리 보기 ▾</button>
-        <div class="synopsis">${escapeHtml(item.synopsis)}</div>
-      ` : ""}
       <div class="actions">
         <button class="btn small" data-action="edit" data-key="movies" data-id="${item.id}">편집</button>
         <button class="btn small" data-action="search" data-title="${escapeAttr(item.title)}">포털검색</button>
@@ -405,35 +397,105 @@ function travelRow(t) {
   </div>`;
 }
 
+let perfViewMode = "grid"; // "grid" | "calendar"
+let calMonth = null; // { year, month(0-indexed) }
+
 function renderPerformancesTab() {
+  const addBtn = `
+    <div class="section-row">
+      <h2>공연 목록</h2>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button class="btn small ${perfViewMode === "grid" ? "primary" : ""}" data-action="perfView" data-mode="grid">🎫 포스터</button>
+        <button class="btn small ${perfViewMode === "calendar" ? "primary" : ""}" data-action="perfView" data-mode="calendar">📅 달력</button>
+        <button class="btn primary" data-add="performances">+ 추가하기</button>
+      </div>
+    </div>`;
+
+  if (perfViewMode === "calendar") return addBtn + renderPerfCalendar();
+
   const list = [...state.performances].sort((a, b) => a.date.localeCompare(b.date));
-  const addBtn = `<div class="section-row"><h2>공연 목록</h2><button class="btn primary" data-add="performances">+ 추가하기</button></div>`;
-  return addBtn + `<div class="grid" style="grid-template-columns:1fr;">${list.map(p => perfRow(p)).join("")}</div>`;
+  return addBtn + `<div class="grid">${list.map(perfCard).join("")}</div>`;
 }
 
-function perfRow(p) {
-  const posterBg = p.poster ? "" : `style="background:${posterGradient(p.title)}"`;
-  const posterContent = p.poster ? `<img src="${escapeAttr(p.poster)}" alt="" onerror="this.style.display='none'">` : "🎫";
+function perfCard(p) {
+  const bg = p.poster ? "" : `style="background:${posterGradient(p.title)}"`;
+  const tagColor = p.solo ? "var(--accent)" : "var(--deep)";
   return `
-  <div class="list-stub" data-card-id="${p.id}">
-    <div class="poster-thumb" ${posterBg}>${posterContent}</div>
-    <div class="lead">
-      <div class="num">${p.date.slice(5).replace("-", "/")}</div>
-      <div class="tag" style="background:${p.solo ? "var(--accent)" : "var(--deep)"}">${p.solo ? "혼자" : "동행"}</div>
-    </div>
-    <div class="body">
-      <div class="title">${p.link ? `<a href="${escapeAttr(p.link)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">${escapeHtml(p.title)} ↗</a>` : escapeHtml(p.title)}</div>
+  <div class="stub" data-card-id="${p.id}">
+    <span class="badge" style="background:${tagColor}">${p.solo ? "혼자" : "동행"}</span>
+    <div class="poster" ${bg} data-action="detail" data-key="performances" data-id="${p.id}">${posterBlock(p, "🎫")}</div>
+    <div class="tear"></div>
+    <div class="info">
+      <div class="title">${escapeHtml(p.title)}</div>
       <div class="meta">
-        <b>장소</b> ${escapeHtml(p.venue)}<br>
-        <b>좌석</b> ${escapeHtml(p.seat || "-")} ${p.companions && p.companions !== "혼자" ? `· <b>동행</b> ${escapeHtml(p.companions)}` : ""}
+        ${p.date.slice(5).replace("-", "/")} · ${escapeHtml(p.venue)}<br>
+        ₩${Number(p.price || 0).toLocaleString()}
+      </div>
+      <div class="actions">
+        <button class="btn small" data-action="edit" data-key="performances" data-id="${p.id}">편집</button>
+        <button class="btn small danger" data-action="delete" data-key="performances" data-id="${p.id}">삭제</button>
       </div>
     </div>
-    <div class="right">
-      <div class="price">₩${Number(p.price || 0).toLocaleString()}</div>
-      <button class="btn small" data-action="edit" data-key="performances" data-id="${p.id}">편집</button>
-      <button class="btn small danger" data-action="delete" data-key="performances" data-id="${p.id}">삭제</button>
-    </div>
   </div>`;
+}
+
+function ensureCalMonth() {
+  if (calMonth) return;
+  const now = new Date();
+  calMonth = { year: now.getFullYear(), month: now.getMonth() };
+}
+
+function shiftCalMonth(delta) {
+  ensureCalMonth();
+  let m = calMonth.month + delta;
+  let y = calMonth.year;
+  while (m < 0) { m += 12; y -= 1; }
+  while (m > 11) { m -= 12; y += 1; }
+  calMonth = { year: y, month: m };
+}
+
+function renderPerfCalendar() {
+  ensureCalMonth();
+  const { year, month } = calMonth;
+  const startWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const byDate = {};
+  state.performances.forEach(p => { (byDate[p.date] = byDate[p.date] || []).push(p); });
+
+  const cells = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const weekdayRow = ["일", "월", "화", "수", "목", "금", "토"]
+    .map(w => `<div class="cal-weekday">${w}</div>`).join("");
+
+  const dayCells = cells.map(d => {
+    if (!d) return `<div class="cal-day empty"></div>`;
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const events = byDate[dateStr] || [];
+    const first = events[0];
+    if (!first) return `<div class="cal-day"><div class="daynum">${d}</div></div>`;
+    const posterHtml = first.poster
+      ? `<div class="cal-poster"><img src="${escapeAttr(first.poster)}" alt="" onerror="this.style.display='none'"></div>`
+      : `<div class="cal-poster" style="background:${posterGradient(first.title)}">🎫</div>`;
+    return `
+      <div class="cal-day has-event" data-action="detail" data-key="performances" data-id="${first.id}">
+        <div class="daynum">${d}</div>
+        ${posterHtml}
+        ${events.length > 1 ? `<div class="more">+${events.length - 1}</div>` : ""}
+      </div>`;
+  }).join("");
+
+  return `
+    <div class="cal-nav">
+      <button class="btn small" data-action="calPrev">‹ 이전</button>
+      <div style="font-weight:800;">${year}년 ${month + 1}월</div>
+      <button class="btn small" data-action="calNext">다음 ›</button>
+    </div>
+    <div class="calendar">${weekdayRow}${dayCells}</div>
+  `;
 }
 
 // ====================== Events ======================
@@ -467,12 +529,17 @@ function attachEvents() {
       window.open(`https://search.naver.com/search.naver?query=${encodeURIComponent(btn.dataset.title)}`, "_blank");
     });
   });
-  root.querySelectorAll('[data-action="toggleSyn"]').forEach(btn => {
-    btn.addEventListener("click", () => {
-      const box = btn.nextElementSibling;
-      box.classList.toggle("open");
-      btn.textContent = box.classList.contains("open") ? "줄거리 접기 ▴" : "줄거리 보기 ▾";
-    });
+  root.querySelectorAll('[data-action="detail"]').forEach(el => {
+    el.addEventListener("click", () => openDetailPopup(el.dataset.key, el.dataset.id));
+  });
+  root.querySelectorAll('[data-action="perfView"]').forEach(btn => {
+    btn.addEventListener("click", () => { perfViewMode = btn.dataset.mode; render(); });
+  });
+  root.querySelectorAll('[data-action="calPrev"]').forEach(btn => {
+    btn.addEventListener("click", () => { shiftCalMonth(-1); render(); });
+  });
+  root.querySelectorAll('[data-action="calNext"]').forEach(btn => {
+    btn.addEventListener("click", () => { shiftCalMonth(1); render(); });
   });
   attachSwipe();
 }
@@ -655,6 +722,54 @@ function wireWikiButton(titleGetter) {
 }
 
 // ---- Edit modal (poster/cast/synopsis/etc, shared by dramas/shows/movies; separate for travel/perf)
+// ---- Detail popup (opened by clicking a poster) ----
+function openDetailPopup(key, id) {
+  const item = state[key].find(x => x.id === id);
+  if (!item) return;
+
+  const emoji = key === "movies" ? "🎬" : key === "performances" ? "🎫" : "📺";
+  const posterHtml = item.poster
+    ? `<img src="${escapeAttr(item.poster)}" alt="" style="width:100%;border-radius:12px;margin-bottom:14px;display:block;" onerror="this.style.display='none'">`
+    : `<div style="width:100%;aspect-ratio:2/3;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;text-align:center;padding:16px;background:${posterGradient(item.title)}">${emoji}<br>${escapeHtml(item.title)}</div>`;
+
+  let metaHtml = "";
+  let bodyText = "";
+
+  if (key === "dramas" || key === "shows") {
+    metaHtml = `
+      ${item.broadcaster ? `${key === "dramas" ? "방송사" : "채널"}: ${escapeHtml(item.broadcaster)}<br>` : ""}
+      ${item.cast ? `${key === "dramas" ? "주연배우" : "출연진"}: ${escapeHtml(item.cast)}<br>` : ""}
+      ${item.genre ? `장르: ${escapeHtml(item.genre)}` : ""}
+    `;
+    bodyText = item.synopsis || "등록된 줄거리가 없어요. 편집에서 추가해보세요.";
+  } else if (key === "movies") {
+    metaHtml = item.cast ? `주연배우: ${escapeHtml(item.cast)}` : "";
+    bodyText = item.synopsis || "등록된 줄거리가 없어요. 편집에서 추가해보세요.";
+  } else if (key === "performances") {
+    metaHtml = `
+      날짜: ${escapeHtml(item.date)}<br>
+      장소: ${escapeHtml(item.venue)}<br>
+      좌석: ${escapeHtml(item.seat || "-")}<br>
+      동행: ${escapeHtml(item.companions || "혼자")}<br>
+      가격: ₩${Number(item.price || 0).toLocaleString()}
+    `;
+    bodyText = item.link ? `<a href="${escapeAttr(item.link)}" target="_blank" rel="noopener">예매 페이지 바로가기 ↗</a>` : "";
+  }
+
+  openModal(`
+    ${posterHtml}
+    <h3 style="margin:0 0 8px;">${escapeHtml(item.title)}</h3>
+    ${metaHtml ? `<div class="hint" style="margin-bottom:10px;">${metaHtml}</div>` : ""}
+    <div style="font-size:13px; line-height:1.6; color:var(--ink); margin-bottom:16px;">${bodyText}</div>
+    <div class="modal-actions">
+      <button class="btn" id="popup-close">닫기</button>
+      <button class="btn primary" id="popup-edit">편집</button>
+    </div>
+  `);
+  document.getElementById("popup-close").onclick = closeModal;
+  document.getElementById("popup-edit").onclick = () => { closeModal(); openEditModal(key, id); };
+}
+
 function openEditModal(key, id) {
   const item = state[key].find(x => x.id === id);
   if (!item) return;

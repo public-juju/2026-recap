@@ -398,7 +398,7 @@ function travelRow(t) {
 }
 
 let perfViewMode = "grid"; // "grid" | "calendar"
-let calMonth = null; // { year, month(0-indexed) }
+const TIMELINE_YEAR = 2026;
 
 function renderPerformancesTab() {
   const addBtn = `
@@ -411,7 +411,7 @@ function renderPerformancesTab() {
       </div>
     </div>`;
 
-  if (perfViewMode === "calendar") return addBtn + renderPerfCalendar();
+  if (perfViewMode === "calendar") return addBtn + renderPerfTimeline();
 
   const list = [...state.performances].sort((a, b) => a.date.localeCompare(b.date));
   return addBtn + `<div class="grid">${list.map(perfCard).join("")}</div>`;
@@ -439,29 +439,20 @@ function perfCard(p) {
   </div>`;
 }
 
-function ensureCalMonth() {
-  if (calMonth) return;
-  const now = new Date();
-  calMonth = { year: now.getFullYear(), month: now.getMonth() };
-}
-
-function shiftCalMonth(delta) {
-  ensureCalMonth();
-  let m = calMonth.month + delta;
-  let y = calMonth.year;
-  while (m < 0) { m += 12; y -= 1; }
-  while (m > 11) { m -= 12; y += 1; }
-  calMonth = { year: y, month: m };
-}
-
-function renderPerfCalendar() {
-  ensureCalMonth();
-  const { year, month } = calMonth;
-  const startWeekday = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
+// Full-year, scrollable "timeline" calendar (12 month blocks stacked vertically),
+// with a small poster shown on each date that has a performance.
+function renderPerfTimeline() {
   const byDate = {};
   state.performances.forEach(p => { (byDate[p.date] = byDate[p.date] || []).push(p); });
+
+  const blocks = [];
+  for (let m = 0; m < 12; m++) blocks.push(renderMonthBlock(TIMELINE_YEAR, m, byDate));
+  return `<div class="timeline">${blocks.join("")}</div>`;
+}
+
+function renderMonthBlock(year, month, byDate) {
+  const startWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const cells = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
@@ -489,12 +480,10 @@ function renderPerfCalendar() {
   }).join("");
 
   return `
-    <div class="cal-nav">
-      <button class="btn small" data-action="calPrev">‹ 이전</button>
-      <div style="font-weight:800;">${year}년 ${month + 1}월</div>
-      <button class="btn small" data-action="calNext">다음 ›</button>
+    <div class="month-block">
+      <div class="month-title">${year}년 ${month + 1}월</div>
+      <div class="calendar">${weekdayRow}${dayCells}</div>
     </div>
-    <div class="calendar">${weekdayRow}${dayCells}</div>
   `;
 }
 
@@ -534,12 +523,6 @@ function attachEvents() {
   });
   root.querySelectorAll('[data-action="perfView"]').forEach(btn => {
     btn.addEventListener("click", () => { perfViewMode = btn.dataset.mode; render(); });
-  });
-  root.querySelectorAll('[data-action="calPrev"]').forEach(btn => {
-    btn.addEventListener("click", () => { shiftCalMonth(-1); render(); });
-  });
-  root.querySelectorAll('[data-action="calNext"]').forEach(btn => {
-    btn.addEventListener("click", () => { shiftCalMonth(1); render(); });
   });
   attachSwipe();
 }
@@ -782,6 +765,7 @@ function openEditModal(key, id) {
         <button class="btn small" id="wiki-fill">📖 위키백과에서 정보 가져오기</button>
       </div>
       <div class="hint">해외 영화·유명 드라마는 TMDB가, 한국 예능/일부 드라마는 위키백과가 더 잘 찾을 때가 많아요. 둘 다 안 되면 아래 링크로 직접 찾아 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
+      <div class="field"><label>제목</label><input id="f-title" value="${escapeAttr(item.title)}"></div>
       <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
       <div class="field"><label>방송사/채널</label><input id="f-bc" value="${escapeAttr(item.broadcaster || "")}"></div>
       <div class="field"><label>${key === "dramas" ? "주연배우" : "출연진"} (쉼표로 구분)</label><input id="f-cast" value="${escapeAttr(item.cast || "")}"></div>
@@ -792,10 +776,11 @@ function openEditModal(key, id) {
         <button class="btn primary" id="modal-save">저장</button>
       </div>
     `);
-    wireTmdbButton("tv", () => item.title);
-    wireWikiButton(() => item.title);
+    wireTmdbButton("tv", () => document.getElementById("f-title").value.trim() || item.title);
+    wireWikiButton(() => document.getElementById("f-title").value.trim() || item.title);
     document.getElementById("modal-cancel").onclick = closeModal;
     document.getElementById("modal-save").onclick = () => {
+      item.title = document.getElementById("f-title").value.trim() || item.title;
       item.poster = document.getElementById("f-poster").value.trim();
       item.broadcaster = document.getElementById("f-bc").value.trim();
       item.cast = document.getElementById("f-cast").value.trim();
@@ -811,6 +796,7 @@ function openEditModal(key, id) {
         <button class="btn small" id="wiki-fill">📖 위키백과에서 정보 가져오기</button>
       </div>
       <div class="hint">해외 영화는 TMDB가 대체로 더 잘 찾아요. 안 되면 아래 링크로 직접 찾아 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
+      <div class="field"><label>제목</label><input id="f-title" value="${escapeAttr(item.title)}"></div>
       <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
       <div class="field"><label>관람 방식</label>
         <select id="f-type"><option ${item.type==="OTT"?"selected":""}>OTT</option><option ${item.type==="영화관"?"selected":""}>영화관</option></select>
@@ -822,10 +808,11 @@ function openEditModal(key, id) {
         <button class="btn primary" id="modal-save">저장</button>
       </div>
     `);
-    wireTmdbButton("movie", () => item.title);
-    wireWikiButton(() => item.title);
+    wireTmdbButton("movie", () => document.getElementById("f-title").value.trim() || item.title);
+    wireWikiButton(() => document.getElementById("f-title").value.trim() || item.title);
     document.getElementById("modal-cancel").onclick = closeModal;
     document.getElementById("modal-save").onclick = () => {
+      item.title = document.getElementById("f-title").value.trim() || item.title;
       item.poster = document.getElementById("f-poster").value.trim();
       item.type = document.getElementById("f-type").value;
       item.cast = document.getElementById("f-cast").value.trim();

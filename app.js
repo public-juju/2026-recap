@@ -123,11 +123,11 @@ function uid(prefix) {
 
 // ====================== Tabs ======================
 const TABS = [
-  { key: "dramas", label: "드라마", gate: "01", emoji: "📺" },
-  { key: "movies", label: "영화", gate: "02", emoji: "🎥" },
-  { key: "shows", label: "예능&교양", gate: "03", emoji: "📺" },
-  { key: "performances", label: "공연", gate: "04", emoji: "🫶🏻" },
-  { key: "travels", label: "여행", gate: "05", emoji: "✈️" }
+  { key: "dramas", label: "드라마", emoji: "📺" },
+  { key: "movies", label: "영화", emoji: "🎥" },
+  { key: "shows", label: "예능&교양", emoji: "📺" },
+  { key: "performances", label: "공연", emoji: "🫶🏻" },
+  { key: "travels", label: "여행", emoji: "✈️" }
 ];
 
 let activeTab = "dramas";
@@ -183,7 +183,7 @@ function renderTabs() {
   return `<div class="tabs" role="tablist">
     ${TABS.map(t => `
       <button class="tab-btn ${t.key === activeTab ? "active" : ""}" data-tab="${t.key}" role="tab" aria-selected="${t.key === activeTab}">
-        <span class="gate-no">GATE ${t.gate}</span> ${t.emoji} ${t.label}
+        ${t.emoji} ${t.label}
       </button>
     `).join("")}
   </div>`;
@@ -474,6 +474,38 @@ function attachEvents() {
       btn.textContent = box.classList.contains("open") ? "줄거리 접기 ▴" : "줄거리 보기 ▾";
     });
   });
+  attachSwipe();
+}
+
+// ---- Swipe left/right on the content area to switch tabs
+function attachSwipe() {
+  const content = document.getElementById("content");
+  if (!content) return;
+  let startX = 0, startY = 0, startT = 0;
+
+  content.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startT = Date.now();
+  }, { passive: true });
+
+  content.addEventListener("touchend", (e) => {
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    const dt = Date.now() - startT;
+    const absDx = Math.abs(dx), absDy = Math.abs(dy);
+
+    // Require a clearly horizontal, reasonably quick, reasonably long swipe
+    // so normal vertical scrolling never gets mistaken for a tab switch.
+    if (absDx < 70 || absDx < absDy * 1.5 || dt > 600) return;
+
+    const idx = TABS.findIndex(t => t.key === activeTab);
+    if (dx < 0 && idx < TABS.length - 1) { activeTab = TABS[idx + 1].key; render(); }
+    else if (dx > 0 && idx > 0) { activeTab = TABS[idx - 1].key; render(); }
+  }, { passive: true });
 }
 
 // ====================== Modal helpers ======================

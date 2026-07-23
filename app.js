@@ -540,6 +540,88 @@ function wireTmdbButton(mediaType, titleGetter) {
   });
 }
 
+// ====================== Wikipedia (한국어) auto-fill ======================
+// No API key needed — ko.wikipedia.org's API allows anonymous cross-origin
+// requests via origin=*. Good fallback for Korean variety shows / dramas
+// that TMDB doesn't have.
+function cleanWikitext(s) {
+  return String(s || "")
+    .replace(/\{\{[^{}]*\}\}/g, "")           // strip nested templates (refs, etc.)
+    .replace(/\[\[(?:[^\]|]*\|)?([^\]]+)\]\]/g, "$1") // [[link|label]] -> label
+    .replace(/<br\s*\/?>/gi, ", ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/'''?/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractInfoboxField(wikitext, names) {
+  for (const name of names) {
+    const re = new RegExp("\\|\\s*" + name + "\\s*=\\s*([^\\n]+)");
+    const m = wikitext.match(re);
+    if (m && m[1].trim()) return cleanWikitext(m[1]);
+  }
+  return "";
+}
+
+async function wikiLookup(query) {
+  try {
+    const searchUrl = `https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
+    const searchRes = await fetch(searchUrl);
+    const searchData = await searchRes.json();
+    const hits = searchData.query && searchData.query.search;
+    if (!hits || !hits.length) {
+      alert(`"${query}"에 대한 위키백과 문서를 찾지 못했어요.`);
+      return null;
+    }
+    const pageTitle = hits[0].title;
+
+    const introUrl = `https://ko.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=true&explaintext=true&piprop=original&titles=${encodeURIComponent(pageTitle)}&format=json&origin=*`;
+    const wikitextUrl = `https://ko.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&titles=${encodeURIComponent(pageTitle)}&format=json&origin=*`;
+    const [introRes, wtRes] = await Promise.all([fetch(introUrl), fetch(wikitextUrl)]);
+    const introData = await introRes.json();
+    const wtData = await wtRes.json();
+
+    const introPages = introData.query.pages;
+    const introPage = introPages[Object.keys(introPages)[0]];
+    const synopsis = (introPage.extract || "").trim();
+    const poster = introPage.original ? introPage.original.source : "";
+
+    const wtPages = wtData.query.pages;
+    const wtPage = wtPages[Object.keys(wtPages)[0]];
+    const wikitext = (wtPage.revisions && wtPage.revisions[0].slots.main["*"]) || "";
+
+    const broadcaster = extractInfoboxField(wikitext, ["방송 채널", "방송채널", "채널", "방송사"]);
+    const cast = extractInfoboxField(wikitext, ["출연자", "출연"]);
+
+    return { poster, synopsis, broadcaster, cast, pageTitle };
+  } catch (e) {
+    console.warn("Wikipedia lookup failed", e);
+    alert("위키백과에서 정보를 가져오는 중 문제가 생겼어요.");
+    return null;
+  }
+}
+
+function wireWikiButton(titleGetter) {
+  const btn = document.getElementById("wiki-fill");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const query = titleGetter();
+    if (!query) return;
+    btn.disabled = true;
+    btn.textContent = "가져오는 중…";
+    const info = await wikiLookup(query);
+    btn.disabled = false;
+    btn.textContent = "📖 위키백과에서 정보 가져오기";
+    if (!info) return;
+    if (info.poster) document.getElementById("f-poster").value = info.poster;
+    if (info.synopsis) document.getElementById("f-syn").value = info.synopsis;
+    const bcField = document.getElementById("f-bc");
+    if (bcField && info.broadcaster) bcField.value = info.broadcaster;
+    if (info.cast) document.getElementById("f-cast").value = info.cast;
+  });
+}
+
 // ---- Edit modal (poster/cast/synopsis/etc, shared by dramas/shows/movies; separate for travel/perf)
 function openEditModal(key, id) {
   const item = state[key].find(x => x.id === id);
@@ -548,8 +630,11 @@ function openEditModal(key, id) {
   if (key === "dramas" || key === "shows") {
     openModal(`
       <h3>${escapeHtml(item.title)} 편집</h3>
-      <button class="btn small" id="tmdb-fill" style="margin-bottom:10px;">🔎 TMDB에서 정보 가져오기</button>
-      <div class="hint">TMDB(영화·TV 정보 DB)에서 포스터·출연진·줄거리를 자동으로 채워줘요. 국내 드라마 중 일부, 예능/교양은 등록이 없을 수 있어요. 안 되면 아래 링크로 직접 찾아 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
+      <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+        <button class="btn small" id="tmdb-fill">🔎 TMDB에서 정보 가져오기</button>
+        <button class="btn small" id="wiki-fill">📖 위키백과에서 정보 가져오기</button>
+      </div>
+      <div class="hint">해외 영화·유명 드라마는 TMDB가, 한국 예능/일부 드라마는 위키백과가 더 잘 찾을 때가 많아요. 둘 다 안 되면 아래 링크로 직접 찾아 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
       <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
       <div class="field"><label>방송사/채널</label><input id="f-bc" value="${escapeAttr(item.broadcaster || "")}"></div>
       <div class="field"><label>${key === "dramas" ? "주연배우" : "출연진"} (쉼표로 구분)</label><input id="f-cast" value="${escapeAttr(item.cast || "")}"></div>
@@ -561,6 +646,7 @@ function openEditModal(key, id) {
       </div>
     `);
     wireTmdbButton("tv", () => item.title);
+    wireWikiButton(() => item.title);
     document.getElementById("modal-cancel").onclick = closeModal;
     document.getElementById("modal-save").onclick = () => {
       item.poster = document.getElementById("f-poster").value.trim();
@@ -573,8 +659,11 @@ function openEditModal(key, id) {
   } else if (key === "movies") {
     openModal(`
       <h3>${escapeHtml(item.title)} 편집</h3>
-      <button class="btn small" id="tmdb-fill" style="margin-bottom:10px;">🔎 TMDB에서 정보 가져오기</button>
-      <div class="hint">TMDB에서 포스터·주연배우·줄거리를 자동으로 채워줘요. 안 되면 아래 링크로 직접 찾아 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
+      <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+        <button class="btn small" id="tmdb-fill">🔎 TMDB에서 정보 가져오기</button>
+        <button class="btn small" id="wiki-fill">📖 위키백과에서 정보 가져오기</button>
+      </div>
+      <div class="hint">해외 영화는 TMDB가 대체로 더 잘 찾아요. 안 되면 아래 링크로 직접 찾아 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
       <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
       <div class="field"><label>관람 방식</label>
         <select id="f-type"><option ${item.type==="OTT"?"selected":""}>OTT</option><option ${item.type==="영화관"?"selected":""}>영화관</option></select>
@@ -587,6 +676,7 @@ function openEditModal(key, id) {
       </div>
     `);
     wireTmdbButton("movie", () => item.title);
+    wireWikiButton(() => item.title);
     document.getElementById("modal-cancel").onclick = closeModal;
     document.getElementById("modal-save").onclick = () => {
       item.poster = document.getElementById("f-poster").value.trim();

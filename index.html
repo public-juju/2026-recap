@@ -2,9 +2,19 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>2026 결산 · 드라마 · 영화 · 예능 · 공연 · 여행</title>
 <meta name="description" content="2026년 한 해 동안 본 드라마, 영화, 예능, 다녀온 공연과 여행을 기록하는 개인 결산 아카이브">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1b4332">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="2026 결산">
+
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -43,6 +53,11 @@
       await window.resetAllData();
       location.reload();
     });
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch((e) => console.warn("SW registration failed", e));
+      });
+    }
   </script>
 </body>
 </html>

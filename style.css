@@ -1,7 +1,7 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
 
 :root {
-  /* Fresh Greens palette */
+  /* Fresh Greens palette (used as accents/cards on a white page) */
   --swatch-1: #d8f3dc;
   --swatch-2: #b7e4c7;
   --swatch-3: #95d5b2;
@@ -12,9 +12,9 @@
   --swatch-8: #1b4332;
   --swatch-9: #081c15;
 
-  --bg: var(--swatch-9);
-  --bg-soft: var(--swatch-8);
-  --rail: var(--swatch-7);
+  --bg: #ffffff;
+  --bg-soft: #eef8f1;
+  --rail: #dfefe4;
   --paper: var(--swatch-1);
   --paper-dim: var(--swatch-2);
   --ink: var(--swatch-9);
@@ -24,8 +24,8 @@
   --mint: var(--swatch-3);
   --deep: var(--swatch-8);
   --danger: #b3413a;
-  --text-on-dark: var(--swatch-1);
-  --text-muted: var(--swatch-4);
+  --text-on-dark: var(--swatch-9);
+  --text-muted: var(--swatch-7);
   --radius: 14px;
   font-size: 16px;
 }
@@ -43,8 +43,8 @@ html, body {
 
 body {
   background-image:
-    radial-gradient(circle at 10% -10%, rgba(82, 183, 136, 0.12), transparent 40%),
-    radial-gradient(circle at 90% 0%, rgba(149, 213, 178, 0.08), transparent 40%);
+    radial-gradient(circle at 10% -10%, rgba(82, 183, 136, 0.07), transparent 40%),
+    radial-gradient(circle at 90% 0%, rgba(149, 213, 178, 0.06), transparent 40%);
 }
 
 .app { max-width: 1180px; margin: 0 auto; padding: 0 24px 80px; }
@@ -52,7 +52,7 @@ body {
 /* ---------- Header / gate board ---------- */
 .gate-header {
   padding: 40px 0 22px;
-  border-bottom: 1px dashed rgba(255,255,255,0.14);
+  border-bottom: 1px dashed rgba(8,28,21,0.14);
   margin-bottom: 22px;
   display: flex;
   align-items: flex-end;
@@ -64,7 +64,7 @@ body {
 .gate-header .eyebrow {
   font-size: 12px;
   letter-spacing: 0.28em;
-  color: var(--accent-soft);
+  color: var(--accent);
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -104,7 +104,7 @@ body {
 .tab-btn {
   flex: 0 0 auto;
   background: var(--rail);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(8,28,21,0.08);
   color: var(--text-muted);
   padding: 10px 18px;
   border-radius: 999px;
@@ -123,7 +123,7 @@ body {
   font-size: 11px;
   font-weight: 800;
   color: var(--ink-dim);
-  background: rgba(255,255,255,0.08);
+  background: rgba(8,28,21,0.08);
   padding: 1px 6px;
   border-radius: 5px;
 }
@@ -135,7 +135,7 @@ body {
 }
 .tab-btn.active .gate-no { background: rgba(0,0,0,0.15); color: var(--ink); }
 
-.tab-btn:hover:not(.active) { border-color: rgba(255,255,255,0.25); color: var(--text-on-dark); }
+.tab-btn:hover:not(.active) { border-color: rgba(8,28,21,0.25); color: var(--text-on-dark); }
 
 /* ---------- Insight stubs ---------- */
 .insights {
@@ -147,7 +147,7 @@ body {
 
 .insight-card {
   background: var(--bg-soft);
-  border: 1px solid rgba(255,255,255,0.07);
+  border: 1px solid rgba(8,28,21,0.07);
   border-radius: var(--radius);
   padding: 16px 18px;
   position: relative;
@@ -195,7 +195,7 @@ body {
   font-size: 13px;
   border-radius: 999px;
   padding: 8px 16px;
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid rgba(8,28,21,0.15);
   background: transparent;
   color: var(--text-on-dark);
   cursor: pointer;
@@ -206,9 +206,8 @@ body {
 .btn.small { padding: 4px 8px; font-size: 10.5px; }
 .btn.danger:hover { border-color: var(--danger); color: var(--danger); }
 
-/* Buttons placed on light "paper" ticket cards need dark styling, not the
-   light-on-dark defaults above — otherwise they're invisible against the
-   light card background. */
+/* Buttons on the mint "paper" ticket cards get a slightly filled look so
+   they read as distinct controls against the card. */
 .stub .btn, .list-stub .btn {
   background: rgba(8, 28, 21, 0.08);
   color: var(--ink);
@@ -385,7 +384,7 @@ body {
 
 .modal {
   background: var(--bg-soft);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(8,28,21,0.1);
   border-radius: 18px;
   width: 100%;
   max-width: 440px;
@@ -406,7 +405,7 @@ body {
   width: 100%;
   font-family: inherit;
   background: var(--rail);
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid rgba(8,28,21,0.12);
   color: var(--text-on-dark);
   padding: 9px 11px;
   border-radius: 8px;
@@ -426,7 +425,7 @@ body {
   margin-bottom: 12px;
   line-height: 1.5;
 }
-.hint a { color: var(--accent-soft); }
+.hint a { color: var(--accent); font-weight: 700; }
 
 /* ---------- Travel / performance list rows (non-poster) ---------- */
 .list-stub {
@@ -440,6 +439,20 @@ body {
   box-shadow: 0 8px 20px rgba(0,0,0,0.22);
   position: relative;
 }
+.list-stub .poster-thumb {
+  flex: 0 0 56px;
+  width: 56px;
+  aspect-ratio: 2/3;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #fff;
+  position: relative;
+}
+.list-stub .poster-thumb img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
 .list-stub .lead {
   flex: 0 0 84px;
   text-align: center;

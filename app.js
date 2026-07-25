@@ -135,6 +135,59 @@ let activeTab = "dramas";
 const STATUS_COLOR = { "완료": "var(--accent-soft)", "보는중": "var(--mint)", "중도하차": "var(--deep)" };
 const STATUS_ORDER = ["보는중", "완료", "중도하차"];
 
+// ====================== Filter / sort ======================
+const filterState = {
+  dramas: { query: "", sort: "asc" },
+  shows: { query: "", sort: "asc" },
+  movies: { query: "", sort: "asc" },
+  travels: { query: "", sort: "asc" },
+  performances: { query: "", sort: "asc" }
+};
+
+function searchableText(key, item) {
+  if (key === "dramas" || key === "shows") {
+    return [item.title, item.cast, item.broadcaster, item.genre].filter(Boolean).join(" ");
+  }
+  if (key === "movies") return [item.title, item.cast].filter(Boolean).join(" ");
+  if (key === "travels") return [item.destination, item.companions, item.transport].filter(Boolean).join(" ");
+  if (key === "performances") return [item.title, item.venue, item.companions, item.seat].filter(Boolean).join(" ");
+  return item.title || "";
+}
+
+function sortValue(key, item) {
+  if (key === "movies") return item.order;
+  if (key === "travels") return item.startDate;
+  if (key === "performances") return item.date;
+  return (item.title || "").toLowerCase();
+}
+
+function applyFilterSort(key, list) {
+  const { query, sort } = filterState[key];
+  let out = list;
+  if (query.trim()) {
+    const q = query.trim().toLowerCase();
+    out = out.filter(item => searchableText(key, item).toLowerCase().includes(q));
+  }
+  out = [...out].sort((a, b) => {
+    const va = sortValue(key, a), vb = sortValue(key, b);
+    const cmp = (typeof va === "number" && typeof vb === "number")
+      ? va - vb
+      : String(va).localeCompare(String(vb), "ko");
+    return sort === "asc" ? cmp : -cmp;
+  });
+  return out;
+}
+
+function renderFilterBar(key, placeholder) {
+  const { query, sort } = filterState[key];
+  return `
+    <div class="filter-bar">
+      <input type="text" class="filter-input" data-filter-key="${key}" placeholder="${escapeAttr(placeholder || "검색")}" value="${escapeAttr(query)}">
+      <button class="btn small" data-action="toggleSort" data-key="${key}">${sort === "asc" ? "🔼 오름차순" : "🔽 내림차순"}</button>
+    </div>
+  `;
+}
+
 // ====================== Poster placeholder ======================
 const PALETTE = ["#3b4a63", "#5b3a4a", "#3a5b4f", "#5b4a3a", "#43395b", "#3a5057"];
 function hashStr(s) {
@@ -288,18 +341,19 @@ function renderContent(tab) {
 }
 
 function renderMediaTab(key, emoji, grouped, bcLabel, castLabel) {
-  const list = state[key];
-  const addBtn = `<div class="section-row"><h2>${TABS.find(t=>t.key===key).label} 목록</h2><button class="btn primary" data-add="${key}">+ 추가하기</button></div>`;
-  if (!grouped) return addBtn + renderGrid(list, key, emoji, bcLabel, castLabel);
+  const filtered = applyFilterSort(key, state[key]);
+  const addBtn = `<div class="section-row"><h2>${TABS.find(t=>t.key===key).label} 목록</h2><button class="btn primary" data-add="${key}">+ 추가하기</button></div>`
+    + renderFilterBar(key, "제목·배우·방송사로 검색");
+  if (!grouped) return addBtn + renderGrid(filtered, key, emoji, bcLabel, castLabel);
 
   const groups = STATUS_ORDER.map(status => ({
-    status, items: list.filter(x => x.status === status)
+    status, items: filtered.filter(x => x.status === status)
   }));
 
   return addBtn + groups.map(g => `
     <div class="status-group">
       <div class="status-title"><span class="dot" style="background:${STATUS_COLOR[g.status]}"></span>${g.status} <span class="count">${g.items.length}편</span></div>
-      ${g.items.length ? renderGrid(g.items, key, emoji, bcLabel, castLabel) : `<div class="empty-state">아직 항목이 없어요</div>`}
+      ${g.items.length ? renderGrid(g.items, key, emoji, bcLabel, castLabel) : `<div class="empty-state">해당하는 항목이 없어요</div>`}
     </div>
   `).join("");
 }
@@ -310,13 +364,6 @@ function renderGrid(items, key, emoji, bcLabel, castLabel) {
 
 function mediaCard(item, key, emoji, bcLabel, castLabel) {
   const bg = item.poster ? "" : `style="background:${posterGradient(item.title)}"`;
-  const statusButtons = key !== "movies" && item.status === "보는중" ? `
-    <button class="btn small" data-action="setStatus" data-key="${key}" data-id="${item.id}" data-status="완료">완료</button>
-    <button class="btn small" data-action="setStatus" data-key="${key}" data-id="${item.id}" data-status="중도하차">중도하차</button>
-  ` : "";
-  const reopenBtn = key !== "movies" && item.status !== "보는중" ? `
-    <button class="btn small" data-action="setStatus" data-key="${key}" data-id="${item.id}" data-status="보는중">보는중으로</button>
-  ` : "";
   return `
   <div class="stub" data-card-id="${item.id}">
     <div class="poster" ${bg} data-action="detail" data-key="${key}" data-id="${item.id}">${posterBlock(item, emoji)}</div>
@@ -328,20 +375,15 @@ function mediaCard(item, key, emoji, bcLabel, castLabel) {
         ${item.cast ? `${escapeHtml(castLabel)}: ${escapeHtml(item.cast)}<br>` : ""}
         ${item.genre ? `장르: ${escapeHtml(item.genre)}` : ""}
       </div>
-      <div class="actions">
-        ${statusButtons}${reopenBtn}
-        <button class="btn small" data-action="edit" data-key="${key}" data-id="${item.id}">편집</button>
-        <button class="btn small" data-action="search" data-title="${escapeAttr(item.title)}">포털검색</button>
-        <button class="btn small danger" data-action="delete" data-key="${key}" data-id="${item.id}">삭제</button>
-      </div>
     </div>
   </div>`;
 }
 
 function renderMoviesTab() {
-  const list = [...state.movies].sort((a, b) => a.order - b.order);
-  const addBtn = `<div class="section-row"><h2>영화 목록</h2><button class="btn primary" data-add="movies">+ 추가하기</button></div>`;
-  return addBtn + `<div class="grid">${list.map(item => movieCard(item)).join("")}</div>`;
+  const filtered = applyFilterSort("movies", state.movies);
+  const addBtn = `<div class="section-row"><h2>영화 목록</h2><button class="btn primary" data-add="movies">+ 추가하기</button></div>`
+    + renderFilterBar("movies", "제목·배우로 검색");
+  return addBtn + `<div class="grid">${filtered.map(item => movieCard(item)).join("")}</div>`;
 }
 
 function movieCard(item) {
@@ -355,19 +397,15 @@ function movieCard(item) {
     <div class="info">
       <div class="title">${escapeHtml(item.title)}</div>
       <div class="meta">${item.cast ? `주연배우: ${escapeHtml(item.cast)}` : ""}</div>
-      <div class="actions">
-        <button class="btn small" data-action="edit" data-key="movies" data-id="${item.id}">편집</button>
-        <button class="btn small" data-action="search" data-title="${escapeAttr(item.title)}">포털검색</button>
-        <button class="btn small danger" data-action="delete" data-key="movies" data-id="${item.id}">삭제</button>
-      </div>
     </div>
   </div>`;
 }
 
 function renderTravelsTab() {
-  const list = [...state.travels].sort((a, b) => a.startDate.localeCompare(b.startDate));
-  const addBtn = `<div class="section-row"><h2>여행 목록</h2><button class="btn primary" data-add="travels">+ 추가하기</button></div>`;
-  return addBtn + `<div class="grid" style="grid-template-columns:1fr;">${list.map(t => travelRow(t)).join("")}</div>`;
+  const filtered = applyFilterSort("travels", state.travels);
+  const addBtn = `<div class="section-row"><h2>여행 목록</h2><button class="btn primary" data-add="travels">+ 추가하기</button></div>`
+    + renderFilterBar("travels", "여행지·동행으로 검색");
+  return addBtn + `<div class="grid" style="grid-template-columns:1fr;">${filtered.map(t => travelRow(t)).join("")}</div>`;
 }
 
 function fmtDateRange(a, b) {
@@ -397,24 +435,11 @@ function travelRow(t) {
   </div>`;
 }
 
-let perfViewMode = "grid"; // "grid" | "calendar"
-const TIMELINE_YEAR = 2026;
-
 function renderPerformancesTab() {
-  const addBtn = `
-    <div class="section-row">
-      <h2>공연 목록</h2>
-      <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <button class="btn small ${perfViewMode === "grid" ? "primary" : ""}" data-action="perfView" data-mode="grid">🎫 포스터</button>
-        <button class="btn small ${perfViewMode === "calendar" ? "primary" : ""}" data-action="perfView" data-mode="calendar">📅 달력</button>
-        <button class="btn primary" data-add="performances">+ 추가하기</button>
-      </div>
-    </div>`;
-
-  if (perfViewMode === "calendar") return addBtn + renderPerfTimeline();
-
-  const list = [...state.performances].sort((a, b) => a.date.localeCompare(b.date));
-  return addBtn + `<div class="grid">${list.map(perfCard).join("")}</div>`;
+  const filtered = applyFilterSort("performances", state.performances);
+  const addBtn = `<div class="section-row"><h2>공연 목록</h2><button class="btn primary" data-add="performances">+ 추가하기</button></div>`
+    + renderFilterBar("performances", "공연명·장소로 검색");
+  return addBtn + `<div class="grid">${filtered.map(perfCard).join("")}</div>`;
 }
 
 function perfCard(p) {
@@ -431,60 +456,8 @@ function perfCard(p) {
         ${p.date.slice(5).replace("-", "/")} · ${escapeHtml(p.venue)}<br>
         ₩${Number(p.price || 0).toLocaleString()}
       </div>
-      <div class="actions">
-        <button class="btn small" data-action="edit" data-key="performances" data-id="${p.id}">편집</button>
-        <button class="btn small danger" data-action="delete" data-key="performances" data-id="${p.id}">삭제</button>
-      </div>
     </div>
   </div>`;
-}
-
-// Full-year, scrollable "timeline" calendar (12 month blocks stacked vertically),
-// with a small poster shown on each date that has a performance.
-function renderPerfTimeline() {
-  const byDate = {};
-  state.performances.forEach(p => { (byDate[p.date] = byDate[p.date] || []).push(p); });
-
-  const blocks = [];
-  for (let m = 0; m < 12; m++) blocks.push(renderMonthBlock(TIMELINE_YEAR, m, byDate));
-  return `<div class="timeline">${blocks.join("")}</div>`;
-}
-
-function renderMonthBlock(year, month, byDate) {
-  const startWeekday = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  const cells = [];
-  for (let i = 0; i < startWeekday; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  const weekdayRow = ["일", "월", "화", "수", "목", "금", "토"]
-    .map(w => `<div class="cal-weekday">${w}</div>`).join("");
-
-  const dayCells = cells.map(d => {
-    if (!d) return `<div class="cal-day empty"></div>`;
-    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    const events = byDate[dateStr] || [];
-    const first = events[0];
-    if (!first) return `<div class="cal-day"><div class="daynum">${d}</div></div>`;
-    const posterHtml = first.poster
-      ? `<div class="cal-poster"><img src="${escapeAttr(first.poster)}" alt="" onerror="this.style.display='none'"></div>`
-      : `<div class="cal-poster" style="background:${posterGradient(first.title)}">🎫</div>`;
-    return `
-      <div class="cal-day has-event" data-action="detail" data-key="performances" data-id="${first.id}">
-        <div class="daynum">${d}</div>
-        ${posterHtml}
-        ${events.length > 1 ? `<div class="more">+${events.length - 1}</div>` : ""}
-      </div>`;
-  }).join("");
-
-  return `
-    <div class="month-block">
-      <div class="month-title">${year}년 ${month + 1}월</div>
-      <div class="calendar">${weekdayRow}${dayCells}</div>
-    </div>
-  `;
 }
 
 // ====================== Events ======================
@@ -521,8 +494,22 @@ function attachEvents() {
   root.querySelectorAll('[data-action="detail"]').forEach(el => {
     el.addEventListener("click", () => openDetailPopup(el.dataset.key, el.dataset.id));
   });
-  root.querySelectorAll('[data-action="perfView"]').forEach(btn => {
-    btn.addEventListener("click", () => { perfViewMode = btn.dataset.mode; render(); });
+  root.querySelectorAll('[data-filter-key]').forEach(input => {
+    input.addEventListener("input", () => {
+      const key = input.dataset.filterKey;
+      filterState[key].query = input.value;
+      const cursorPos = input.selectionStart;
+      render();
+      const newInput = document.querySelector(`[data-filter-key="${key}"]`);
+      if (newInput) { newInput.focus(); newInput.setSelectionRange(cursorPos, cursorPos); }
+    });
+  });
+  root.querySelectorAll('[data-action="toggleSort"]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.key;
+      filterState[key].sort = filterState[key].sort === "asc" ? "desc" : "asc";
+      render();
+    });
   });
   attachSwipe();
 }
@@ -553,8 +540,8 @@ function attachSwipe() {
     if (absDx < 70 || absDx < absDy * 1.5 || dt > 600) return;
 
     const idx = TABS.findIndex(t => t.key === activeTab);
-    if (dx < 0 && idx < TABS.length - 1) { activeTab = TABS[idx + 1].key; render(); }
-    else if (dx > 0 && idx > 0) { activeTab = TABS[idx - 1].key; render(); }
+    if (dx < 0) { activeTab = TABS[(idx + 1) % TABS.length].key; render(); }
+    else { activeTab = TABS[(idx - 1 + TABS.length) % TABS.length].key; render(); }
   }, { passive: true });
 }
 
@@ -739,18 +726,47 @@ function openDetailPopup(key, id) {
     bodyText = item.link ? `<a href="${escapeAttr(item.link)}" target="_blank" rel="noopener">예매 페이지 바로가기 ↗</a>` : "";
   }
 
+  let statusHtml = "";
+  if ((key === "dramas" || key === "shows") && item.status === "보는중") {
+    statusHtml = `
+      <button class="btn small" data-action="setStatus" data-key="${key}" data-id="${item.id}" data-status2="완료">완료로 표시</button>
+      <button class="btn small" data-action="setStatus" data-key="${key}" data-id="${item.id}" data-status2="중도하차">중도하차로 표시</button>
+    `;
+  } else if ((key === "dramas" || key === "shows") && item.status !== "보는중") {
+    statusHtml = `<button class="btn small" data-action="setStatus" data-key="${key}" data-id="${item.id}" data-status2="보는중">보는중으로 표시</button>`;
+  }
+
   openModal(`
     ${posterHtml}
     <h3 style="margin:0 0 8px;">${escapeHtml(item.title)}</h3>
     ${metaHtml ? `<div class="hint" style="margin-bottom:10px;">${metaHtml}</div>` : ""}
     <div style="font-size:13px; line-height:1.6; color:var(--ink); margin-bottom:16px;">${bodyText}</div>
-    <div class="modal-actions">
-      <button class="btn" id="popup-close">닫기</button>
-      <button class="btn primary" id="popup-edit">편집</button>
+    ${statusHtml ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">${statusHtml}</div>` : ""}
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn danger" id="popup-delete">삭제</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" id="popup-close">닫기</button>
+        <button class="btn primary" id="popup-edit">편집</button>
+      </div>
     </div>
   `);
   document.getElementById("popup-close").onclick = closeModal;
   document.getElementById("popup-edit").onclick = () => { closeModal(); openEditModal(key, id); };
+  document.getElementById("popup-delete").onclick = () => {
+    if (!confirm("이 항목을 삭제할까요?")) return;
+    state[key] = state[key].filter(x => x.id !== id);
+    persistDelete(key, id);
+    closeModal();
+    render();
+  };
+  modalBody.querySelectorAll('[data-action="setStatus"]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      item.status = btn.dataset.status2;
+      persistUpsert(key, item);
+      closeModal();
+      render();
+    });
+  });
 }
 
 function openEditModal(key, id) {

@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="2026 결산">
 
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
   <div class="app">
@@ -36,17 +36,14 @@
 
   <div class="overlay" id="modal-overlay">
     <div class="modal">
-      <div style="display:flex; justify-content:flex-end;">
-        <button class="btn small" id="modal-close">닫기</button>
-      </div>
       <div id="modal-body"></div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=6"></script>
-  <script src="data.js?v=6"></script>
-  <script src="app.js?v=6"></script>
+  <script src="config.js?v=7"></script>
+  <script src="data.js?v=7"></script>
+  <script src="app.js?v=7"></script>
   <script>
     document.getElementById("reset-btn").addEventListener("click", async () => {
       if (!confirm("정말 모든 데이터를 초기 상태로 되돌릴까요? 직접 추가/수정한 내용이 모두 사라집니다.")) return;

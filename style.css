@@ -1,27 +1,24 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
 
 :root {
-  /* Pastel Dreamland palette — multiple hues (pink/lavender/blue/cyan) rather
-     than one color family, for better visual variety and distinguishability.
-     --paper / --paper-dim / --accent / --accent-soft are re-set per active
-     tab from JS (see TAB_THEME in app.js) so each section gets its own hue;
-     everything else here stays constant for consistent legibility. */
+  /* Neutral (achromatic) UI chrome — cards, buttons, tabs stay grayscale so
+     the colorful badges (broadcaster/type/region/status) are what pops. */
   --bg: #ffffff;
-  --bg-soft: #f8f5fc;
-  --rail: #f3eefc;
+  --bg-soft: #f5f5f7;
+  --rail: #ececef;
 
-  --paper: #ffc8dd;
-  --paper-dim: #ffafcc;
-  --accent: #ffafcc;
-  --accent-soft: #ffc8dd;
+  --paper: #f2f2f5;
+  --paper-dim: #e5e5ea;
+  --accent: #45454e;
+  --accent-soft: #5c5c66;
 
-  --ink: #3d2c56;
-  --ink-dim: #7a6a95;
-  --text-on-dark: #3d2c56;
-  --text-muted: #8a7ba3;
+  --ink: #26262c;
+  --ink-dim: #6b6b74;
+  --text-on-dark: #26262c;
+  --text-muted: #8a8a92;
 
-  --mint: #ffd6e8;
-  --deep: #7a6fd6;
+  --mint: #c9c9d1;
+  --deep: #45454e;
   --danger: #b3413a;
   --radius: 14px;
   font-size: 16px;
@@ -51,7 +48,7 @@ body {
 /* ---------- Header / gate board ---------- */
 .gate-header {
   padding: 40px 0 22px;
-  border-bottom: 1px dashed rgba(61,44,86,0.14);
+  border-bottom: 1px dashed rgba(38,38,44,0.14);
   margin-bottom: 22px;
   display: flex;
   align-items: flex-end;
@@ -103,7 +100,7 @@ body {
 .tab-btn {
   flex: 0 0 auto;
   background: var(--rail);
-  border: 1px solid rgba(61,44,86,0.08);
+  border: 1px solid rgba(38,38,44,0.08);
   color: var(--text-muted);
   padding: 10px 18px;
   border-radius: 999px;
@@ -120,11 +117,11 @@ body {
 
 .tab-btn.active {
   background: var(--accent-soft);
-  color: var(--ink);
+  color: #fff;
   border-color: var(--accent-soft);
 }
 
-.tab-btn:hover:not(.active) { border-color: rgba(61,44,86,0.25); color: var(--text-on-dark); }
+.tab-btn:hover:not(.active) { border-color: rgba(38,38,44,0.25); color: var(--text-on-dark); }
 
 /* ---------- Insight stubs ---------- */
 .insights {
@@ -136,7 +133,7 @@ body {
 
 .insight-card {
   background: var(--bg-soft);
-  border: 1px solid rgba(61,44,86,0.07);
+  border: 1px solid rgba(38,38,44,0.07);
   border-radius: var(--radius);
   padding: 16px 18px;
   position: relative;
@@ -184,14 +181,14 @@ body {
   font-size: 13px;
   border-radius: 999px;
   padding: 8px 16px;
-  border: 1px solid rgba(61,44,86,0.15);
+  border: 1px solid rgba(38,38,44,0.15);
   background: transparent;
   color: var(--text-on-dark);
   cursor: pointer;
 }
 .btn:hover { border-color: var(--accent-soft); color: var(--accent-soft); }
-.btn.primary { background: var(--accent-soft); color: var(--ink); border-color: var(--accent-soft); }
-.btn.primary:hover { filter: brightness(1.05); color: var(--ink); }
+.btn.primary { background: var(--accent-soft); color: #fff; border-color: var(--accent-soft); }
+.btn.primary:hover { filter: brightness(1.1); color: #fff; }
 .btn.small { padding: 4px 8px; font-size: 10.5px; }
 .btn.danger:hover { border-color: var(--danger); color: var(--danger); }
 
@@ -342,7 +339,7 @@ body {
 
 .modal {
   background: var(--bg-soft);
-  border: 1px solid rgba(61,44,86,0.1);
+  border: 1px solid rgba(38,38,44,0.1);
   border-radius: 18px;
   width: 100%;
   max-width: 440px;
@@ -363,7 +360,7 @@ body {
   width: 100%;
   font-family: inherit;
   background: var(--rail);
-  border: 1px solid rgba(61,44,86,0.12);
+  border: 1px solid rgba(38,38,44,0.12);
   color: var(--text-on-dark);
   padding: 9px 11px;
   border-radius: 8px;
@@ -454,7 +451,7 @@ body {
   font-family: inherit;
   font-size: 13px;
   background: var(--rail);
-  border: 1px solid rgba(61,44,86,0.15);
+  border: 1px solid rgba(38,38,44,0.15);
   color: var(--text-on-dark);
   padding: 9px 12px;
   border-radius: 999px;
@@ -466,7 +463,7 @@ body {
   font-size: 12.5px;
   font-weight: 600;
   background: var(--rail);
-  border: 1px solid rgba(61,44,86,0.15);
+  border: 1px solid rgba(38,38,44,0.15);
   color: var(--text-on-dark);
   padding: 8px 10px;
   border-radius: 999px;

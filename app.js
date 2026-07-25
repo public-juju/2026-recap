@@ -139,15 +139,23 @@ const STATUS_ORDER = ["보는중", "완료", "중도하차"];
 
 // ====================== Filter / sort ======================
 const filterState = {
-  dramas: { sort: "asc", broadcaster: "" },
-  shows: { sort: "asc", broadcaster: "" },
-  movies: { sort: "asc", type: "" },
+  dramas: { sort: "asc", sortBy: "title", broadcaster: "" },
+  shows: { sort: "asc", sortBy: "title", broadcaster: "" },
+  movies: { sort: "asc", sortBy: "order", type: "" },
   travels: { sort: "asc", region: "" },
   performances: { sort: "asc" }
 };
 
 function sortValue(key, item) {
-  if (key === "movies") return item.order;
+  const f = filterState[key];
+  if (key === "movies") {
+    if (f.sortBy === "type") return `${item.type}_${String(item.order).padStart(4, "0")}`;
+    return item.order;
+  }
+  if (key === "dramas" || key === "shows") {
+    if (f.sortBy === "broadcaster") return `${(item.broadcaster || "zzz").toLowerCase()}_${(item.title || "").toLowerCase()}`;
+    return (item.title || "").toLowerCase();
+  }
   if (key === "travels") return item.startDate;
   if (key === "performances") return item.date;
   return (item.title || "").toLowerCase();
@@ -188,6 +196,27 @@ function renderBroadcasterFilter(key) {
     <option value="">전체 방송사/채널</option>
     ${options.map(o => `<option value="${escapeAttr(o)}" ${current === o ? "selected" : ""}>${escapeHtml(o)}</option>`).join("")}
   </select>`;
+}
+
+// "정렬 기준" — groups everything by broadcaster/viewing-method instead of
+// filtering any of it out, so e.g. all OTT and all 영화관 items are visible
+// together, just clustered by type.
+function renderSortByFilter(key) {
+  if (key === "dramas" || key === "shows") {
+    const current = filterState[key].sortBy || "title";
+    return `<select class="filter-select" data-filter-key="${key}" data-filter-field="sortBy">
+      <option value="title" ${current === "title" ? "selected" : ""}>제목순</option>
+      <option value="broadcaster" ${current === "broadcaster" ? "selected" : ""}>방송사별로 모아보기</option>
+    </select>`;
+  }
+  if (key === "movies") {
+    const current = filterState.movies.sortBy || "order";
+    return `<select class="filter-select" data-filter-key="movies" data-filter-field="sortBy">
+      <option value="order" ${current === "order" ? "selected" : ""}>감상 순서대로</option>
+      <option value="type" ${current === "type" ? "selected" : ""}>영화관/OTT별로 모아보기</option>
+    </select>`;
+  }
+  return "";
 }
 
 function renderMovieTypeFilter() {
@@ -389,7 +418,7 @@ function renderContent(tab) {
 function renderMediaTab(key, emoji, grouped, bcLabel, castLabel) {
   const filtered = applyFilterSort(key, state[key]);
   const addBtn = `<div class="section-row"><h2>${TABS.find(t=>t.key===key).label} 목록</h2><button class="btn primary" data-add="${key}">+ 추가하기</button></div>`
-    + renderFilterBar(key, renderBroadcasterFilter(key));
+    + renderFilterBar(key, renderBroadcasterFilter(key) + renderSortByFilter(key));
   if (!grouped) return addBtn + renderGrid(filtered, key, emoji, bcLabel, castLabel);
 
   const groups = STATUS_ORDER
@@ -431,7 +460,7 @@ function mediaCard(item, key, emoji, bcLabel, castLabel) {
 function renderMoviesTab() {
   const filtered = applyFilterSort("movies", state.movies);
   const addBtn = `<div class="section-row"><h2>영화 목록</h2><button class="btn primary" data-add="movies">+ 추가하기</button></div>`
-    + renderFilterBar("movies", renderMovieTypeFilter());
+    + renderFilterBar("movies", renderMovieTypeFilter() + renderSortByFilter("movies"));
   return addBtn + `<div class="grid">${filtered.map(item => movieCard(item)).join("")}</div>`;
 }
 

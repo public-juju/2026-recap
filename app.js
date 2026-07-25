@@ -224,8 +224,10 @@ function render() {
   const tab = TABS.find(t => t.key === activeTab);
   root.innerHTML = `
     ${renderTabs()}
-    <div id="insights"></div>
-    <div id="content"></div>
+    <div id="swipe-area">
+      <div id="insights"></div>
+      <div id="content"></div>
+    </div>
   `;
   document.getElementById("insights").innerHTML = renderInsights(activeTab);
   document.getElementById("content").innerHTML = renderContent(activeTab);
@@ -304,9 +306,9 @@ function renderInsights(tab) {
     return `<div class="insights">
       ${insightCard(list.length, "총 여행 횟수", null)}
       ${insightCard(`${domestic} : ${intl}`, "국내 : 해외", `국내 ${domestic}회 · 해외 ${intl}회`)}
-      ${insightCard(`${solo} : ${withOthers}`, "혼자 : 동행", `혼자 ${solo}회 · 동행 ${withOthers}회`)}
+      ${insightCard(`${solo} : ${withOthers}`, "혼자 : 함께", `혼자 ${solo}회 · 함께 ${withOthers}회`)}
       ${insightCard(totalKm.toLocaleString(), "총 이동 거리(km, 추정)", "KTX는 서울역, 국내선은 김포·해외는 인천 기준 편도 추정치")}
-      ${counts2.length ? insightCard(counts2[0][0], "최다 동행", `${counts2[0][1]}회 함께함`) : ""}
+      ${counts2.length ? insightCard(counts2[0][0], "최다 함께", `${counts2[0][1]}회 함께함`) : ""}
     </div>`;
   }
 
@@ -322,7 +324,7 @@ function renderInsights(tab) {
     return `<div class="insights">
       ${insightCard(list.length, "총 관람 횟수", null)}
       ${insightCard("₩" + total.toLocaleString(), "총 지출", `평균 ₩${avg.toLocaleString()} / 회`)}
-      ${insightCard(`${solo} : ${withOthers}`, "혼자 : 동행", `혼자 ${solo}회 · 동행 ${withOthers}회`)}
+      ${insightCard(`${solo} : ${withOthers}`, "혼자 : 함께", `혼자 ${solo}회 · 함께 ${withOthers}회`)}
       ${topTitle ? insightCard(topTitle[0], "가장 많이 본 공연", `${topTitle[1]}회 관람`) : ""}
     </div>`;
   }
@@ -366,12 +368,12 @@ function mediaCard(item, key, emoji, bcLabel, castLabel) {
   const bg = item.poster ? "" : `style="background:${posterGradient(item.title)}"`;
   return `
   <div class="stub" data-card-id="${item.id}">
+    ${item.broadcaster ? `<span class="badge" style="background:var(--accent)">${escapeHtml(item.broadcaster)}</span>` : ""}
     <div class="poster" ${bg} data-action="detail" data-key="${key}" data-id="${item.id}">${posterBlock(item, emoji)}</div>
     <div class="tear"></div>
     <div class="info">
       <div class="title">${escapeHtml(item.title)}</div>
       <div class="meta">
-        ${item.broadcaster ? `${escapeHtml(bcLabel)}: ${escapeHtml(item.broadcaster)}<br>` : ""}
         ${item.cast ? `${escapeHtml(castLabel)}: ${escapeHtml(item.cast)}<br>` : ""}
         ${item.genre ? `장르: ${escapeHtml(item.genre)}` : ""}
       </div>
@@ -404,7 +406,7 @@ function movieCard(item) {
 function renderTravelsTab() {
   const filtered = applyFilterSort("travels", state.travels);
   const addBtn = `<div class="section-row"><h2>여행 목록</h2><button class="btn primary" data-add="travels">+ 추가하기</button></div>`
-    + renderFilterBar("travels", "여행지·동행으로 검색");
+    + renderFilterBar("travels", "여행지·함께한 사람으로 검색");
   return addBtn + `<div class="grid" style="grid-template-columns:1fr;">${filtered.map(t => travelRow(t)).join("")}</div>`;
 }
 
@@ -424,7 +426,7 @@ function travelRow(t) {
     <div class="body">
       <div class="title">${escapeHtml(t.destination)} ${t.solo ? "· 혼자" : ""}</div>
       <div class="meta">
-        <b>이동수단</b> ${escapeHtml(t.transport)} · <b>동행</b> ${escapeHtml(t.companions || "혼자")}<br>
+        <b>이동수단</b> ${escapeHtml(t.transport)} · <b>함께</b> ${escapeHtml(t.companions || "혼자")}<br>
         <b>추정 이동거리</b> 편도 약 ${Number(t.distanceKm || 0).toLocaleString()}km
       </div>
     </div>
@@ -447,7 +449,7 @@ function perfCard(p) {
   const tagColor = p.solo ? "var(--accent)" : "var(--deep)";
   return `
   <div class="stub" data-card-id="${p.id}">
-    <span class="badge" style="background:${tagColor}">${p.solo ? "혼자" : "동행"}</span>
+    <span class="badge" style="background:${tagColor}">${p.solo ? "혼자" : "함께"}</span>
     <div class="poster" ${bg} data-action="detail" data-key="performances" data-id="${p.id}">${posterBlock(p, "🎫")}</div>
     <div class="tear"></div>
     <div class="info">
@@ -514,20 +516,20 @@ function attachEvents() {
   attachSwipe();
 }
 
-// ---- Swipe left/right on the content area to switch tabs
+// ---- Swipe left/right anywhere in the tab area (insights + content) to switch tabs
 function attachSwipe() {
-  const content = document.getElementById("content");
-  if (!content) return;
+  const area = document.getElementById("swipe-area");
+  if (!area) return;
   let startX = 0, startY = 0, startT = 0;
 
-  content.addEventListener("touchstart", (e) => {
+  area.addEventListener("touchstart", (e) => {
     if (e.touches.length !== 1) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     startT = Date.now();
   }, { passive: true });
 
-  content.addEventListener("touchend", (e) => {
+  area.addEventListener("touchend", (e) => {
     const touch = e.changedTouches[0];
     if (!touch) return;
     const dx = touch.clientX - startX;
@@ -719,7 +721,7 @@ function openDetailPopup(key, id) {
       날짜: ${escapeHtml(item.date)}<br>
       장소: ${escapeHtml(item.venue)}<br>
       좌석: ${escapeHtml(item.seat || "-")}<br>
-      동행: ${escapeHtml(item.companions || "혼자")}<br>
+      함께: ${escapeHtml(item.companions || "혼자")}<br>
       가격: ₩${Number(item.price || 0).toLocaleString()}
     `;
     bodyText = item.link ? `<a href="${escapeAttr(item.link)}" target="_blank" rel="noopener">예매 페이지 바로가기 ↗</a>` : "";
@@ -841,7 +843,7 @@ function openEditModal(key, id) {
       <div class="field"><label>시작일</label><input id="f-start" type="date" value="${item.startDate}"></div>
       <div class="field"><label>종료일</label><input id="f-end" type="date" value="${item.endDate}"></div>
       <div class="field"><label>이동수단</label><input id="f-transport" value="${escapeAttr(item.transport)}"></div>
-      <div class="field"><label>동행 (혼자면 "혼자")</label><input id="f-comp" value="${escapeAttr(item.companions || "")}"></div>
+      <div class="field"><label>함께 (혼자면 "혼자")</label><input id="f-comp" value="${escapeAttr(item.companions || "")}"></div>
       <div class="field"><label>추정 편도 거리(km)</label><input id="f-km" type="number" value="${item.distanceKm || 0}"></div>
       <div class="field"><label>해외 여행인가요?</label><select id="f-intl"><option value="false" ${!item.international?"selected":""}>국내</option><option value="true" ${item.international?"selected":""}>해외</option></select></div>
       <div class="modal-actions">
@@ -871,7 +873,7 @@ function openEditModal(key, id) {
       <div class="field"><label>장소</label><input id="f-venue" value="${escapeAttr(item.venue)}"></div>
       <div class="field"><label>가격(원)</label><input id="f-price" type="number" value="${item.price}"></div>
       <div class="field"><label>좌석</label><input id="f-seat" value="${escapeAttr(item.seat || "")}"></div>
-      <div class="field"><label>동행 (혼자면 "혼자")</label><input id="f-comp" value="${escapeAttr(item.companions || "")}"></div>
+      <div class="field"><label>함께 (혼자면 "혼자")</label><input id="f-comp" value="${escapeAttr(item.companions || "")}"></div>
       <div class="field"><label>예매 링크</label><input id="f-link" value="${escapeAttr(item.link || "")}"></div>
       <div class="modal-actions">
         <button class="btn" id="modal-cancel">취소</button>
@@ -940,7 +942,7 @@ function openAddModal(key) {
       <div class="field"><label>시작일</label><input id="f-start" type="date"></div>
       <div class="field"><label>종료일</label><input id="f-end" type="date"></div>
       <div class="field"><label>이동수단</label><input id="f-transport" placeholder="KTX / 비행기 / 자차 등"></div>
-      <div class="field"><label>동행 (혼자면 "혼자")</label><input id="f-comp" value="혼자"></div>
+      <div class="field"><label>함께 (혼자면 "혼자")</label><input id="f-comp" value="혼자"></div>
       <div class="field"><label>추정 편도 거리(km)</label><input id="f-km" type="number" value="0"></div>
       <div class="field"><label>해외 여행인가요?</label><select id="f-intl"><option value="false">국내</option><option value="true">해외</option></select></div>
       <div class="modal-actions">
@@ -974,7 +976,7 @@ function openAddModal(key) {
       <div class="field"><label>장소</label><input id="f-venue" placeholder="공연장"></div>
       <div class="field"><label>가격(원)</label><input id="f-price" type="number" value="0"></div>
       <div class="field"><label>좌석</label><input id="f-seat" placeholder="좌석 정보"></div>
-      <div class="field"><label>동행 (혼자면 "혼자")</label><input id="f-comp" value="혼자"></div>
+      <div class="field"><label>함께 (혼자면 "혼자")</label><input id="f-comp" value="혼자"></div>
       <div class="field"><label>예매 링크</label><input id="f-link" placeholder="https://"></div>
       <div class="modal-actions">
         <button class="btn" id="modal-cancel">취소</button>

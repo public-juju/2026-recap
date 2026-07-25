@@ -551,7 +551,6 @@ const modalBody = document.getElementById("modal-body");
 
 function closeModal() { modalOverlay.classList.remove("open"); modalBody.innerHTML = ""; }
 modalOverlay.addEventListener("click", e => { if (e.target === modalOverlay) closeModal(); });
-document.getElementById("modal-close").addEventListener("click", closeModal);
 
 function openModal(html) { modalBody.innerHTML = html; modalOverlay.classList.add("open"); }
 

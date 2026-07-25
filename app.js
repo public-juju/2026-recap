@@ -139,22 +139,12 @@ const STATUS_ORDER = ["보는중", "완료", "중도하차"];
 
 // ====================== Filter / sort ======================
 const filterState = {
-  dramas: { query: "", sort: "asc", broadcaster: "" },
-  shows: { query: "", sort: "asc", broadcaster: "" },
-  movies: { query: "", sort: "asc", type: "" },
-  travels: { query: "", sort: "asc", region: "" },
-  performances: { query: "", sort: "asc" }
+  dramas: { sort: "asc", broadcaster: "" },
+  shows: { sort: "asc", broadcaster: "" },
+  movies: { sort: "asc", type: "" },
+  travels: { sort: "asc", region: "" },
+  performances: { sort: "asc" }
 };
-
-function searchableText(key, item) {
-  if (key === "dramas" || key === "shows") {
-    return [item.title, item.cast, item.broadcaster, item.genre].filter(Boolean).join(" ");
-  }
-  if (key === "movies") return [item.title, item.cast].filter(Boolean).join(" ");
-  if (key === "travels") return [item.destination, item.companions, item.transport].filter(Boolean).join(" ");
-  if (key === "performances") return [item.title, item.venue, item.companions, item.seat].filter(Boolean).join(" ");
-  return item.title || "";
-}
 
 function sortValue(key, item) {
   if (key === "movies") return item.order;
@@ -166,10 +156,6 @@ function sortValue(key, item) {
 function applyFilterSort(key, list) {
   const f = filterState[key];
   let out = list;
-  if (f.query.trim()) {
-    const q = f.query.trim().toLowerCase();
-    out = out.filter(item => searchableText(key, item).toLowerCase().includes(q));
-  }
   if ((key === "dramas" || key === "shows") && f.broadcaster) {
     out = out.filter(item => (item.broadcaster || "") === f.broadcaster);
   }
@@ -222,11 +208,10 @@ function renderRegionFilter() {
   </select>`;
 }
 
-function renderFilterBar(key, placeholder, extraSelectHtml) {
-  const { query, sort } = filterState[key];
+function renderFilterBar(key, extraSelectHtml) {
+  const { sort } = filterState[key];
   return `
     <div class="filter-bar">
-      <input type="text" class="filter-input" data-filter-key="${key}" placeholder="${escapeAttr(placeholder || "검색")}" value="${escapeAttr(query)}">
       ${extraSelectHtml || ""}
       <button class="btn small" data-action="toggleSort" data-key="${key}">${sort === "asc" ? "🔼 오름차순" : "🔽 내림차순"}</button>
     </div>
@@ -284,8 +269,8 @@ function render() {
   root.innerHTML = `
     ${renderTabs()}
     <div id="swipe-area">
-      <div id="insights"></div>
       <div id="content"></div>
+      <div id="insights"></div>
     </div>
   `;
   document.getElementById("insights").innerHTML = renderInsights(activeTab);
@@ -404,17 +389,19 @@ function renderContent(tab) {
 function renderMediaTab(key, emoji, grouped, bcLabel, castLabel) {
   const filtered = applyFilterSort(key, state[key]);
   const addBtn = `<div class="section-row"><h2>${TABS.find(t=>t.key===key).label} 목록</h2><button class="btn primary" data-add="${key}">+ 추가하기</button></div>`
-    + renderFilterBar(key, "제목·배우·방송사로 검색", renderBroadcasterFilter(key));
+    + renderFilterBar(key, renderBroadcasterFilter(key));
   if (!grouped) return addBtn + renderGrid(filtered, key, emoji, bcLabel, castLabel);
 
-  const groups = STATUS_ORDER.map(status => ({
-    status, items: filtered.filter(x => x.status === status)
-  }));
+  const groups = STATUS_ORDER
+    .map(status => ({ status, items: filtered.filter(x => x.status === status) }))
+    .filter(g => g.items.length > 0);
+
+  if (!groups.length) return addBtn + `<div class="empty-state">해당하는 항목이 없어요</div>`;
 
   return addBtn + groups.map(g => `
     <div class="status-group">
       <div class="status-title"><span class="dot" style="background:${STATUS_COLOR[g.status]}"></span>${g.status} <span class="count">${g.items.length}편</span></div>
-      ${g.items.length ? renderGrid(g.items, key, emoji, bcLabel, castLabel) : `<div class="empty-state">해당하는 항목이 없어요</div>`}
+      ${renderGrid(g.items, key, emoji, bcLabel, castLabel)}
     </div>
   `).join("");
 }
@@ -444,7 +431,7 @@ function mediaCard(item, key, emoji, bcLabel, castLabel) {
 function renderMoviesTab() {
   const filtered = applyFilterSort("movies", state.movies);
   const addBtn = `<div class="section-row"><h2>영화 목록</h2><button class="btn primary" data-add="movies">+ 추가하기</button></div>`
-    + renderFilterBar("movies", "제목·배우로 검색", renderMovieTypeFilter());
+    + renderFilterBar("movies", renderMovieTypeFilter());
   return addBtn + `<div class="grid">${filtered.map(item => movieCard(item)).join("")}</div>`;
 }
 
@@ -466,7 +453,7 @@ function movieCard(item) {
 function renderTravelsTab() {
   const filtered = applyFilterSort("travels", state.travels);
   const addBtn = `<div class="section-row"><h2>여행 목록</h2><button class="btn primary" data-add="travels">+ 추가하기</button></div>`
-    + renderFilterBar("travels", "여행지·함께한 사람으로 검색", renderRegionFilter());
+    + renderFilterBar("travels", renderRegionFilter());
   return addBtn + `<div class="grid" style="grid-template-columns:1fr;">${filtered.map(t => travelRow(t)).join("")}</div>`;
 }
 
@@ -500,7 +487,7 @@ function travelRow(t) {
 function renderPerformancesTab() {
   const filtered = applyFilterSort("performances", state.performances);
   const addBtn = `<div class="section-row"><h2>공연 목록</h2><button class="btn primary" data-add="performances">+ 추가하기</button></div>`
-    + renderFilterBar("performances", "공연명·장소로 검색");
+    + renderFilterBar("performances");
   return addBtn + `<div class="grid">${filtered.map(perfCard).join("")}</div>`;
 }
 
@@ -555,16 +542,6 @@ function attachEvents() {
   });
   root.querySelectorAll('[data-action="detail"]').forEach(el => {
     el.addEventListener("click", () => openDetailPopup(el.dataset.key, el.dataset.id));
-  });
-  root.querySelectorAll('.filter-input[data-filter-key]').forEach(input => {
-    input.addEventListener("input", () => {
-      const key = input.dataset.filterKey;
-      filterState[key].query = input.value;
-      const cursorPos = input.selectionStart;
-      render();
-      const newInput = document.querySelector(`.filter-input[data-filter-key="${key}"]`);
-      if (newInput) { newInput.focus(); newInput.setSelectionRange(cursorPos, cursorPos); }
-    });
   });
   root.querySelectorAll('.filter-select[data-filter-key]').forEach(sel => {
     sel.addEventListener("change", () => {

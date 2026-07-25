@@ -155,16 +155,14 @@ function sortValue(key, item) {
   if (key === "dramas" || key === "shows") {
     if (f.sortBy === "broadcaster") return `${(item.broadcaster || "zzz").toLowerCase()}_${(item.title || "").toLowerCase()}`;
     if (f.sortBy === "title") return (item.title || "").toLowerCase();
-    // 시청순서: trust the known original list over whatever happens to be
-    // stored, since Supabase doesn't guarantee row order and older records
-    // may predate the "order" field.
-    if (key === "dramas" && typeof DRAMA_ORDER_MAP !== "undefined" && DRAMA_ORDER_MAP[item.title]) {
-      return DRAMA_ORDER_MAP[item.title][0];
-    }
-    if (key === "shows" && typeof SHOW_ORDER_MAP !== "undefined" && SHOW_ORDER_MAP[item.title] !== undefined) {
-      return SHOW_ORDER_MAP[item.title];
-    }
-    return item.order || 0;
+    // 시청순서: the original items were seeded with ids "d1".."d31" / "s1".."s16"
+    // in exact viewing order — that id never changes even if the title gets
+    // edited later (e.g. after pulling in a poster/cast via TMDB), so it's a
+    // more reliable source of truth than either the title text or whatever
+    // Supabase happens to have stored for "order".
+    const m = /^[ds](\d+)$/.exec(item.id || "");
+    if (m) return Number(m[1]);
+    return item.order || 0; // newly added items (non-original ids)
   }
   if (key === "travels") return item.startDate;
   if (key === "performances") return item.date;
@@ -1295,26 +1293,21 @@ const SHOW_ORDER_MAP = {
 };
 
 async function migrateOrderFields() {
-  const FLAG = "recap2026_order_migration_v1";
+  const FLAG = "recap2026_order_migration_v2";
   try { if (localStorage.getItem(FLAG) === "done") return; } catch (e) {}
 
   let changed = false;
 
-  state.dramas.forEach(item => {
-    const entry = DRAMA_ORDER_MAP[item.title];
-    if (entry && item.order !== entry[0]) { item.order = entry[0]; changed = true; persistUpsert("dramas", item); }
-  });
+  // Viewing order for the original items now comes from their stable id
+  // (d1..d31 / s1..s16) rather than the stored "order" field or title text,
+  // so this migration only needs to make sure nothing from the original
+  // list is missing (e.g. 참교육, which was added after the initial seed).
   if (!state.dramas.some(x => x.title === "참교육")) {
     const newItem = { id: uid("d"), title: "참교육", status: "중도하차", order: 30 };
     state.dramas.push(newItem);
     persistUpsert("dramas", newItem);
     changed = true;
   }
-
-  state.shows.forEach(item => {
-    const ord = SHOW_ORDER_MAP[item.title];
-    if (ord && item.order !== ord) { item.order = ord; changed = true; persistUpsert("shows", item); }
-  });
 
   try { localStorage.setItem(FLAG, "done"); } catch (e) {}
   if (changed) render();

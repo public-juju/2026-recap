@@ -7,7 +7,7 @@
 <meta name="description" content="2026년 한 해 동안 본 드라마, 영화, 예능, 다녀온 공연과 여행을 기록하는 개인 결산 아카이브">
 
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1b4332">
+<meta name="theme-color" content="#26262c">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -15,7 +15,15 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="2026 결산">
 
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
+<script>
+  // Apply saved theme before first paint, to avoid a light-mode flash.
+  try {
+    if (localStorage.getItem("recap2026_theme") === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  } catch (e) {}
+</script>
 </head>
 <body>
   <div class="app">
@@ -28,6 +36,7 @@
       <div style="display:flex; align-items:flex-end; gap:14px;">
         <div class="gate-clock" id="gate-clock"></div>
         <span class="btn small" id="sync-status" style="pointer-events:none;">확인 중…</span>
+        <button class="btn small" id="theme-toggle" title="다크모드 전환">🌙</button>
         <button class="btn small" id="reset-btn" title="모든 데이터를 초기 상태로 되돌립니다">초기화</button>
       </div>
     </div>
@@ -40,15 +49,33 @@
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="config.js?v=15"></script>
-  <script src="data.js?v=15"></script>
-  <script src="app.js?v=15"></script>
+  <script src="config.js?v=16"></script>
+  <script src="data.js?v=16"></script>
+  <script src="app.js?v=16"></script>
   <script>
     document.getElementById("reset-btn").addEventListener("click", async () => {
       if (!confirm("정말 모든 데이터를 초기 상태로 되돌릴까요? 직접 추가/수정한 내용이 모두 사라집니다.")) return;
       await window.resetAllData();
       location.reload();
+    });
+    const themeToggleBtn = document.getElementById("theme-toggle");
+    function setThemeIcon() {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      themeToggleBtn.textContent = isDark ? "☀️" : "🌙";
+    }
+    setThemeIcon();
+    themeToggleBtn.addEventListener("click", () => {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      if (isDark) {
+        document.documentElement.removeAttribute("data-theme");
+        localStorage.setItem("recap2026_theme", "light");
+      } else {
+        document.documentElement.setAttribute("data-theme", "dark");
+        localStorage.setItem("recap2026_theme", "dark");
+      }
+      setThemeIcon();
     });
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

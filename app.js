@@ -132,6 +132,25 @@ const TABS = [
 
 let activeTab = "dramas";
 
+// Each tab gets its own hue from the pastel palette (paper card + accent),
+// applied to :root as CSS custom properties whenever the tab changes.
+const TAB_THEME = {
+  dramas: { paper: "#ffc8dd", paperDim: "#ffafcc", accent: "#ffafcc", accentSoft: "#ffc8dd" },
+  movies: { paper: "#bde0fe", paperDim: "#a2d2ff", accent: "#a2d2ff", accentSoft: "#bde0fe" },
+  shows: { paper: "#feeafa", paperDim: "#cdb4db", accent: "#cdb4db", accentSoft: "#feeafa" },
+  performances: { paper: "#a9d6e5", paperDim: "#b8b8ff", accent: "#b8b8ff", accentSoft: "#a9d6e5" },
+  travels: { paper: "#cbf3f0", paperDim: "#cbeef3", accent: "#cbeef3", accentSoft: "#cbf3f0" }
+};
+
+function applyTabTheme(key) {
+  const theme = TAB_THEME[key] || TAB_THEME.dramas;
+  const root = document.documentElement.style;
+  root.setProperty("--paper", theme.paper);
+  root.setProperty("--paper-dim", theme.paperDim);
+  root.setProperty("--accent", theme.accent);
+  root.setProperty("--accent-soft", theme.accentSoft);
+}
+
 const STATUS_COLOR = { "완료": "var(--accent-soft)", "보는중": "var(--mint)", "중도하차": "var(--deep)" };
 const STATUS_ORDER = ["보는중", "완료", "중도하차"];
 
@@ -283,6 +302,7 @@ function escapeAttr(str) { return escapeHtml(str); }
 const root = document.getElementById("app-root");
 
 function render() {
+  applyTabTheme(activeTab);
   const tab = TABS.find(t => t.key === activeTab);
   root.innerHTML = `
     ${renderTabs()}

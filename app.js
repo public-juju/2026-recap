@@ -132,26 +132,9 @@ const TABS = [
 
 let activeTab = "dramas";
 
-// Each tab gets its own hue from the pastel palette (paper card + accent),
-// applied to :root as CSS custom properties whenever the tab changes.
-const TAB_THEME = {
-  dramas: { paper: "#ffc8dd", paperDim: "#ffafcc", accent: "#ffafcc", accentSoft: "#ffc8dd" },
-  movies: { paper: "#bde0fe", paperDim: "#a2d2ff", accent: "#a2d2ff", accentSoft: "#bde0fe" },
-  shows: { paper: "#feeafa", paperDim: "#cdb4db", accent: "#cdb4db", accentSoft: "#feeafa" },
-  performances: { paper: "#a9d6e5", paperDim: "#b8b8ff", accent: "#b8b8ff", accentSoft: "#a9d6e5" },
-  travels: { paper: "#cbf3f0", paperDim: "#cbeef3", accent: "#cbeef3", accentSoft: "#cbf3f0" }
-};
-
-function applyTabTheme(key) {
-  const theme = TAB_THEME[key] || TAB_THEME.dramas;
-  const root = document.documentElement.style;
-  root.setProperty("--paper", theme.paper);
-  root.setProperty("--paper-dim", theme.paperDim);
-  root.setProperty("--accent", theme.accent);
-  root.setProperty("--accent-soft", theme.accentSoft);
-}
-
-const STATUS_COLOR = { "완료": "var(--accent-soft)", "보는중": "var(--mint)", "중도하차": "var(--deep)" };
+// Status/type/region badges get their own fixed, vivid colors (independent of
+// the now-neutral UI chrome) so they're the colorful accents on the page.
+const STATUS_COLOR = { "완료": "#22a06b", "보는중": "#f2a93b", "중도하차": "#c4536b" };
 const STATUS_ORDER = ["보는중", "완료", "중도하차"];
 
 // ====================== Filter / sort ======================
@@ -272,22 +255,17 @@ function posterBlock(item, emoji) {
 }
 
 // Give each broadcaster/channel its own consistent shade from the site's blue
-// palette, so the badge on a card is a quick visual cue for "which channel".
-// Give each broadcaster/channel its own visually distinct shade — generated in
-// HSL rather than picked from a small fixed palette, so colors stay clearly
-// different from one another even with many broadcasters, while staying in
-// the app's blue family (cyan through indigo).
-// A fixed set of clearly distinct pastel hues (pink/lavender/blue/cyan) —
-// picking a single color family (all blues) made broadcasters hard to tell
-// apart, so this spans several hues instead while staying soft/pastel.
-const BROADCASTER_PALETTE = [
-  "#FFC8DD", "#FFAFCC", "#CDB4DB", "#A2D2FF", "#BDE0FE",
-  "#A9D6E5", "#CBEEF3", "#CBF3F0", "#B8B8FF", "#FEEAFA"
-];
+// Give each broadcaster/channel a maximally-distinct hue using the golden
+// angle (~137.5°) — this guarantees good separation between colors no matter
+// how many broadcasters exist, unlike a small fixed palette (which can repeat
+// or land on very similar shades). Order is alphabetical so it's stable
+// across reloads regardless of render/sort order.
 function broadcasterColor(name) {
-  const h = hashStr(name || "");
-  const bg = BROADCASTER_PALETTE[h % BROADCASTER_PALETTE.length];
-  return { bg, text: "var(--ink)" }; // all pastel/light, so dark text throughout
+  if (!name) return null;
+  const all = distinctValues([...state.dramas, ...state.shows], "broadcaster");
+  const idx = Math.max(0, all.indexOf(name));
+  const hue = (idx * 137.508) % 360;
+  return { bg: `hsl(${hue}, 68%, 50%)`, text: "#fff" };
 }
 
 // ====================== Escaping ======================
@@ -302,7 +280,6 @@ function escapeAttr(str) { return escapeHtml(str); }
 const root = document.getElementById("app-root");
 
 function render() {
-  applyTabTheme(activeTab);
   const tab = TABS.find(t => t.key === activeTab);
   root.innerHTML = `
     ${renderTabs()}
@@ -473,7 +450,7 @@ function renderMoviesTab() {
 
 function movieCard(item) {
   const bg = item.poster ? "" : `style="background:${posterGradient(item.title)}"`;
-  const badgeColor = item.type === "OTT" ? "var(--accent-soft)" : "var(--deep)";
+  const badgeColor = item.type === "OTT" ? "#8b5cf6" : "#0d9488";
   return `
   <div class="stub" data-card-id="${item.id}">
     <span class="badge" style="background:${badgeColor}">${escapeHtml(item.type)}</span>
@@ -499,7 +476,7 @@ function fmtDateRange(a, b) {
 }
 
 function travelRow(t) {
-  const tagColor = t.international ? "var(--deep)" : "var(--accent)";
+  const tagColor = t.international ? "#f97316" : "#3b82f6";
   return `
   <div class="list-stub" data-card-id="${t.id}">
     <div class="lead">
@@ -529,7 +506,7 @@ function renderPerformancesTab() {
 
 function perfCard(p) {
   const bg = p.poster ? "" : `style="background:${posterGradient(p.title)}"`;
-  const tagColor = p.solo ? "var(--accent)" : "var(--deep)";
+  const tagColor = p.solo ? "#f59e0b" : "#0ea5e9";
   return `
   <div class="stub" data-card-id="${p.id}">
     <span class="badge" style="background:${tagColor}">${p.solo ? "혼자" : "함께"}</span>

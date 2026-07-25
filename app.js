@@ -258,12 +258,17 @@ function posterBlock(item, emoji) {
 // HSL rather than picked from a small fixed palette, so colors stay clearly
 // different from one another even with many broadcasters, while staying in
 // the app's blue family (cyan through indigo).
+// A fixed set of clearly distinct pastel hues (pink/lavender/blue/cyan) —
+// picking a single color family (all blues) made broadcasters hard to tell
+// apart, so this spans several hues instead while staying soft/pastel.
+const BROADCASTER_PALETTE = [
+  "#FFC8DD", "#FFAFCC", "#CDB4DB", "#A2D2FF", "#BDE0FE",
+  "#A9D6E5", "#CBEEF3", "#CBF3F0", "#B8B8FF", "#FEEAFA"
+];
 function broadcasterColor(name) {
   const h = hashStr(name || "");
-  const hue = 195 + (h % 65);            // 195–260: cyan → blue → indigo
-  const sat = 55 + ((h >> 4) % 25);      // 55–80%
-  const light = 32 + ((h >> 8) % 16);    // 32–48% — dark enough for white text
-  return { bg: `hsl(${hue}, ${sat}%, ${light}%)`, text: "#fff" };
+  const bg = BROADCASTER_PALETTE[h % BROADCASTER_PALETTE.length];
+  return { bg, text: "var(--ink)" }; // all pastel/light, so dark text throughout
 }
 
 // ====================== Escaping ======================

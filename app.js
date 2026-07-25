@@ -312,34 +312,53 @@ function topCounts(list, splitter) {
   return sorted;
 }
 
-function buildInsightData(tab) {
+function statCard(eyebrow, big, unit, desc) {
+  return { eyebrow, big, unit, desc, kind: "stat" };
+}
+
+function buildInsightCards(tab) {
   if (tab === "dramas" || tab === "shows") {
     const list = state[tab];
     const label = tab === "dramas" ? "드라마" : "예능&교양";
+    const eng = tab === "dramas" ? "DRAMA" : "SHOW";
     const done = list.filter(x => x.status === "완료").length;
     const watching = list.filter(x => x.status === "보는중").length;
     const dropped = list.filter(x => x.status === "중도하차").length;
     const castCounts = topCounts(list.map(x => x.cast).filter(Boolean), /[,\/]/);
     const genreCounts = topCounts(list.map(x => x.genre).filter(Boolean), /[,\/]/);
     const bcCounts = topCounts(list.map(x => x.broadcaster).filter(Boolean), /[,\/]/);
+    const droppedTitles = list.filter(x => x.status === "중도하차").map(x => x.title);
 
-    const body = [
-      `2026년, «${label}» ${list.length}편을 기록했어요. 완료 ${done}편${watching ? ` · 보는 중 ${watching}편` : ""}${dropped ? ` · 중도하차 ${dropped}편` : ""}이에요.`
+    const cards = [
+      statCard(`2026 ${eng} WRAPPED`, String(list.length), "편의 이야기",
+        `완료 ${done}편${watching ? ` · 보는 중 ${watching}편` : ""}${dropped ? ` · 중도하차 ${dropped}편` : ""}, 한 해 동안 쌓아온 기록이에요.`)
     ];
-    if (genreCounts.length) body.push(`가장 즐겨 본 장르는 «${genreCounts[0][0]}»(${genreCounts[0][1]}편)였어요.`);
-    if (castCounts.length) body.push(`«${castCounts[0][0]}»이(가) 나온 작품을 ${castCounts[0][1]}편 봤어요.`);
-    if (bcCounts.length) body.push(`가장 많이 본 방송사/채널은 «${bcCounts[0][0]}»(${bcCounts[0][1]}편)예요.`);
+    if (genreCounts.length) {
+      cards.push(statCard("GENRE", genreCounts[0][0], "가장 즐겨 본 장르", `${list.length}편 중 ${genreCounts[0][1]}편이 «${genreCounts[0][0]}»였어요.`));
+    }
+    if (castCounts.length) {
+      cards.push(statCard("CAST", castCounts[0][0], "최다 등장 배우/출연진", `«${castCounts[0][0]}»이(가) 나온 작품을 ${castCounts[0][1]}편 봤어요.`));
+    }
+    if (bcCounts.length) {
+      cards.push(statCard("CHANNEL", bcCounts[0][0], "최다 방송사/채널", `«${bcCounts[0][0]}»에서 ${bcCounts[0][1]}편을 봤어요.`));
+    }
+    if (dropped) {
+      cards.push(statCard("DROPPED", String(dropped), "중도하차한 작품", droppedTitles.join(" · ")));
+    }
 
     const tags = [`#총_${list.length}편`, `#완료_${done}편`];
     if (dropped) tags.push(`#중도하차_${dropped}편`);
     if (genreCounts.length) tags.push(`#${genreCounts[0][0]}`);
     if (bcCounts.length) tags.push(`#${bcCounts[0][0]}`);
-
     const highlights = [];
     if (castCounts.length) highlights.push({ label: "최다 등장 배우/출연진", value: castCounts[0][0], sub: `${castCounts[0][1]}편에 등장` });
     if (bcCounts.length) highlights.push({ label: "최다 방송사/채널", value: bcCounts[0][0], sub: `${bcCounts[0][1]}편 시청` });
-
-    return { title: `2026 ${label} 결산`, body, tags, highlights };
+    cards.push({
+      kind: "summary", title: `2026 ${label} 결산`,
+      body: [`2026년, «${label}» ${list.length}편을 기록했어요. 완료 ${done}편${watching ? ` · 보는 중 ${watching}편` : ""}${dropped ? ` · 중도하차 ${dropped}편` : ""}이에요.`],
+      tags, highlights
+    });
+    return cards;
   }
 
   if (tab === "movies") {
@@ -349,15 +368,23 @@ function buildInsightData(tab) {
     const pct = list.length ? Math.round((theater / list.length) * 100) : 0;
     const castCounts = topCounts(list.map(x => x.cast).filter(Boolean), /[,\/]/);
 
-    const body = [`2026년, 영화 ${list.length}편을 봤어요. 영화관 ${theater}편 · OTT ${ott}편으로, 영화관 관람 비중이 ${pct}%였어요.`];
-    if (castCounts.length) body.push(`«${castCounts[0][0]}»이(가) 나온 영화를 ${castCounts[0][1]}편 봤어요.`);
+    const cards = [
+      statCard("2026 MOVIE WRAPPED", String(list.length), "편의 영화", `영화관 ${theater}편 · OTT ${ott}편을 봤어요.`),
+      statCard("VENUE", `${pct}%`, "영화관 관람 비중", `영화관 ${theater}편 · OTT ${ott}편이었어요.`)
+    ];
+    if (castCounts.length) {
+      cards.push(statCard("CAST", castCounts[0][0], "최다 등장 배우", `«${castCounts[0][0]}»이(가) 나온 영화를 ${castCounts[0][1]}편 봤어요.`));
+    }
 
     const tags = [`#총_${list.length}편`, `#영화관_${theater}편`, `#OTT_${ott}편`];
-
     const highlights = [];
     if (castCounts.length) highlights.push({ label: "최다 등장 배우", value: castCounts[0][0], sub: `${castCounts[0][1]}편에 등장` });
-
-    return { title: "2026 영화 결산", body, tags, highlights };
+    cards.push({
+      kind: "summary", title: "2026 영화 결산",
+      body: [`2026년, 영화 ${list.length}편을 봤어요. 영화관 ${theater}편 · OTT ${ott}편으로, 영화관 관람 비중이 ${pct}%였어요.`],
+      tags, highlights
+    });
+    return cards;
   }
 
   if (tab === "travels") {
@@ -370,18 +397,24 @@ function buildInsightData(tab) {
     const flat = list.map(x => (x.companions || "").replace(/[가-힣]+:\s*/g, "")).join(",");
     const companionCounts = topCounts([flat], /,/);
 
-    const body = [
-      `2026년, 여행을 총 ${list.length}번 다녀왔어요. 국내 ${domestic}회 · 해외 ${intl}회, 추정 이동거리는 편도 총 ${totalKm.toLocaleString()}km예요.`,
-      `혼자 떠난 여행이 ${solo}회, 함께한 여행이 ${withOthers}회였어요.`
+    const cards = [
+      statCard("2026 TRAVEL WRAPPED", String(list.length), "번의 여행", `국내 ${domestic}회 · 해외 ${intl}회를 다녀왔어요.`),
+      statCard("DISTANCE", totalKm.toLocaleString(), "총 이동 거리(km, 추정)", "KTX는 서울역, 국내선은 김포·해외는 인천 기준 편도 추정치예요."),
+      statCard("COMPANION", `${solo} : ${withOthers}`, "혼자 : 함께", `혼자 ${solo}회 · 함께 ${withOthers}회 떠났어요.`)
     ];
-    if (companionCounts.length) body.push(`가장 자주 함께한 사람은 «${companionCounts[0][0]}»(${companionCounts[0][1]}회)예요.`);
+    if (companionCounts.length) {
+      cards.push(statCard("TOP COMPANION", companionCounts[0][0], "최다 동행", `${companionCounts[0][1]}회 함께했어요.`));
+    }
 
     const tags = [`#여행_${list.length}회`, `#국내_${domestic}회`, `#해외_${intl}회`, `#이동거리_${totalKm.toLocaleString()}km`];
-
     const highlights = [];
     if (companionCounts.length) highlights.push({ label: "최다 동행", value: companionCounts[0][0], sub: `${companionCounts[0][1]}회 함께함` });
-
-    return { title: "2026 여행 결산", body, tags, highlights };
+    cards.push({
+      kind: "summary", title: "2026 여행 결산",
+      body: [`2026년, 여행을 총 ${list.length}번 다녀왔어요. 국내 ${domestic}회 · 해외 ${intl}회, 추정 이동거리는 편도 총 ${totalKm.toLocaleString()}km예요.`],
+      tags, highlights
+    });
+    return cards;
   }
 
   if (tab === "performances") {
@@ -394,46 +427,73 @@ function buildInsightData(tab) {
     const topTitle = Object.entries(titleCounts).sort((a, b) => b[1] - a[1])[0];
     const avg = list.length ? Math.round(total / list.length) : 0;
 
-    const body = [
-      `2026년, 공연을 총 ${list.length}번 봤어요. 총 지출은 ₩${total.toLocaleString()}, 평균 ₩${avg.toLocaleString()}/회였어요.`,
-      `혼자 본 공연이 ${solo}회, 함께 본 공연이 ${withOthers}회였어요.`
+    const cards = [
+      statCard("2026 SHOW WRAPPED", String(list.length), "번의 공연", `혼자 ${solo}회 · 함께 ${withOthers}회 봤어요.`),
+      statCard("SPENDING", "₩" + total.toLocaleString(), "총 지출", `평균 ₩${avg.toLocaleString()}/회를 썼어요.`)
     ];
-    if (topTitle) body.push(`가장 많이 본 공연은 «${topTitle[0]}»(${topTitle[1]}회)예요.`);
+    if (topTitle) {
+      cards.push(statCard("MOST WATCHED", topTitle[0], "가장 많이 본 공연", `${topTitle[1]}회 관람했어요.`));
+    }
 
     const tags = [`#공연_${list.length}회`, `#총지출_₩${total.toLocaleString()}`, `#혼자_${solo}회`, `#함께_${withOthers}회`];
-
     const highlights = [];
     if (topTitle) highlights.push({ label: "가장 많이 본 공연", value: topTitle[0], sub: `${topTitle[1]}회 관람` });
-
-    return { title: "2026 공연 결산", body, tags, highlights };
+    cards.push({
+      kind: "summary", title: "2026 공연 결산",
+      body: [`2026년, 공연을 총 ${list.length}번 봤어요. 총 지출은 ₩${total.toLocaleString()}, 평균 ₩${avg.toLocaleString()}/회였어요.`],
+      tags, highlights
+    });
+    return cards;
   }
 
-  return null;
+  return [];
+}
+
+function renderInsightCardInner(card) {
+  if (card.kind === "summary") {
+    const tagsHtml = card.tags.map(t => `<span class="icard-tag">${escapeHtml(t)}</span>`).join("");
+    const highlightsHtml = card.highlights.map(h => `
+      <div class="icard-highlight">
+        <div class="h-label">${escapeHtml(h.label)}</div>
+        <div class="h-value">${escapeHtml(h.value)}</div>
+        <div class="h-sub">${escapeHtml(h.sub)}</div>
+      </div>
+    `).join("");
+    return `
+      <div class="icard-title">${escapeHtml(card.title)}</div>
+      <div class="icard-body">${card.body.map(p => `<p>${escapeHtml(p)}</p>`).join("")}</div>
+      <div class="icard-tags">${tagsHtml}</div>
+      ${highlightsHtml ? `<div class="icard-highlights">${highlightsHtml}</div>` : ""}
+    `;
+  }
+  return `
+    <div class="icard-eyebrow">${escapeHtml(card.eyebrow)}</div>
+    <div class="icard-big">${escapeHtml(card.big)}</div>
+    <div class="icard-unit">${escapeHtml(card.unit)}</div>
+    <div class="icard-desc">${escapeHtml(card.desc)}</div>
+  `;
 }
 
 function renderInsights(tab) {
-  const data = buildInsightData(tab);
-  if (!data) return "";
+  const cards = buildInsightCards(tab);
+  if (!cards.length) return "";
 
-  const tagsHtml = data.tags.map(t => `<span class="icard-tag">${escapeHtml(t)}</span>`).join("");
-  const highlightsHtml = data.highlights.map(h => `
-    <div class="icard-highlight">
-      <div class="h-label">${escapeHtml(h.label)}</div>
-      <div class="h-value">${escapeHtml(h.value)}</div>
-      <div class="h-sub">${escapeHtml(h.sub)}</div>
+  const slidesHtml = cards.map((card, i) => `
+    <div class="insight-slide">
+      <div class="insight-card-9x16" id="insight-export-card-${i}">
+        ${renderInsightCardInner(card)}
+        <div class="icard-footer">2026 · ${i + 1} / ${cards.length}</div>
+      </div>
+      <button class="btn primary" data-action="saveInsight" data-index="${i}">📸 이미지로 저장</button>
     </div>
   `).join("");
 
+  const dotsHtml = cards.map((_, i) => `<span class="insight-dot ${i === 0 ? "active" : ""}" data-dot="${i}"></span>`).join("");
+
   return `
     <div class="insight-frame">
-      <div class="insight-card-9x16" id="insight-export-card">
-        <div class="icard-title">${escapeHtml(data.title)}</div>
-        <div class="icard-body">${data.body.map(p => `<p>${escapeHtml(p)}</p>`).join("")}</div>
-        <div class="icard-tags">${tagsHtml}</div>
-        ${highlightsHtml ? `<div class="icard-highlights">${highlightsHtml}</div>` : ""}
-        <div class="icard-footer">2026 결산 · ${escapeHtml(data.title.replace("2026 ", ""))}</div>
-      </div>
-      <button class="btn primary" id="insight-save-btn" data-action="saveInsight" data-tab="${tab}">📸 이미지로 저장</button>
+      <div class="insight-carousel" id="insight-carousel">${slidesHtml}</div>
+      <div class="insight-dots" id="insight-dots">${dotsHtml}</div>
     </div>
   `;
 }
@@ -621,22 +681,50 @@ function attachEvents() {
     });
   });
   root.querySelectorAll('[data-action="saveInsight"]').forEach(btn => {
-    btn.addEventListener("click", () => saveInsightImage(btn.dataset.tab));
+    btn.addEventListener("click", (e) => saveInsightImage(btn.dataset.index, e.currentTarget));
   });
+  attachInsightCarousel();
   attachSwipe();
 }
 
-// ---- Export the insight card as a transparent-background PNG
-async function saveInsightImage(tab) {
-  const cardEl = document.getElementById("insight-export-card");
-  const btn = document.getElementById("insight-save-btn");
+// ---- Insight carousel: sync dot indicators with scroll position, and let
+// tapping a dot jump to that card.
+function attachInsightCarousel() {
+  const carousel = document.getElementById("insight-carousel");
+  const dotsWrap = document.getElementById("insight-dots");
+  if (!carousel || !dotsWrap) return;
+
+  const dots = Array.from(dotsWrap.querySelectorAll(".insight-dot"));
+  dots.forEach(dot => {
+    dot.addEventListener("click", () => {
+      const slide = carousel.children[Number(dot.dataset.dot)];
+      if (slide) slide.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    });
+  });
+
+  let ticking = false;
+  carousel.addEventListener("scroll", () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const slideWidth = carousel.children[0] ? carousel.children[0].offsetWidth + 14 : 1;
+      const idx = Math.round(carousel.scrollLeft / slideWidth);
+      dots.forEach((d, i) => d.classList.toggle("active", i === idx));
+      ticking = false;
+    });
+  }, { passive: true });
+}
+
+// ---- Export an insight card as a transparent-background PNG
+async function saveInsightImage(index, btnEl) {
+  const cardEl = document.getElementById(`insight-export-card-${index}`);
   if (!cardEl) return;
   if (typeof html2canvas === "undefined") {
     alert("이미지 저장 기능을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 시도해주세요.");
     return;
   }
-  const originalText = btn.textContent;
-  btn.style.display = "none"; // exclude the save button itself from the capture
+  const originalDisplay = btnEl.style.display;
+  btnEl.style.display = "none"; // exclude the save button itself from the capture
   try {
     const canvas = await html2canvas(cardEl, {
       backgroundColor: null, // transparent outside the card's own rounded shape
@@ -644,15 +732,14 @@ async function saveInsightImage(tab) {
       useCORS: true
     });
     const link = document.createElement("a");
-    link.download = `2026결산_${tab}.png`;
+    link.download = `2026결산_${index}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
   } catch (e) {
     console.warn("insight image export failed", e);
     alert("이미지를 만드는 중 문제가 생겼어요. 포스터 이미지가 있다면 외부 이미지 로딩 문제일 수 있어요.");
   } finally {
-    btn.style.display = "";
-    btn.textContent = originalText;
+    btnEl.style.display = originalDisplay;
   }
 }
 
@@ -660,16 +747,18 @@ async function saveInsightImage(tab) {
 function attachSwipe() {
   const area = document.getElementById("swipe-area");
   if (!area) return;
-  let startX = 0, startY = 0, startT = 0;
+  let startX = 0, startY = 0, startT = 0, startedInCarousel = false;
 
   area.addEventListener("touchstart", (e) => {
     if (e.touches.length !== 1) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     startT = Date.now();
+    startedInCarousel = !!e.target.closest("#insight-carousel");
   }, { passive: true });
 
   area.addEventListener("touchend", (e) => {
+    if (startedInCarousel) return; // let the carousel handle its own horizontal scroll
     const touch = e.changedTouches[0];
     if (!touch) return;
     const dx = touch.clientX - startX;

@@ -254,11 +254,16 @@ function posterBlock(item, emoji) {
 
 // Give each broadcaster/channel its own consistent shade from the site's blue
 // palette, so the badge on a card is a quick visual cue for "which channel".
-const BADGE_PALETTE = ["#03045e", "#023e8a", "#0077b6", "#0096c7", "#00b4d8", "#48cae4", "#90e0ef", "#ade8f4", "#caf0f8"];
+// Give each broadcaster/channel its own visually distinct shade — generated in
+// HSL rather than picked from a small fixed palette, so colors stay clearly
+// different from one another even with many broadcasters, while staying in
+// the app's blue family (cyan through indigo).
 function broadcasterColor(name) {
   const h = hashStr(name || "");
-  const idx = h % BADGE_PALETTE.length;
-  return { bg: BADGE_PALETTE[idx], text: idx >= 6 ? "var(--ink)" : "#fff" };
+  const hue = 195 + (h % 65);            // 195–260: cyan → blue → indigo
+  const sat = 55 + ((h >> 4) % 25);      // 55–80%
+  const light = 32 + ((h >> 8) % 16);    // 32–48% — dark enough for white text
+  return { bg: `hsl(${hue}, ${sat}%, ${light}%)`, text: "#fff" };
 }
 
 // ====================== Escaping ======================
@@ -427,7 +432,7 @@ function mediaCard(item, key, emoji, bcLabel, castLabel) {
     <div class="info">
       <div class="title">${escapeHtml(item.title)}</div>
       <div class="meta">
-        ${item.cast ? `${escapeHtml(castLabel)}: ${escapeHtml(item.cast)}<br>` : ""}
+        ${item.cast ? `${escapeHtml(item.cast)}<br>` : ""}
         ${item.genre ? `장르: ${escapeHtml(item.genre)}` : ""}
       </div>
     </div>
@@ -770,7 +775,7 @@ function openDetailPopup(key, id) {
   if (key === "dramas" || key === "shows") {
     metaHtml = `
       ${item.broadcaster ? `${key === "dramas" ? "방송사" : "채널"}: ${escapeHtml(item.broadcaster)}<br>` : ""}
-      ${item.cast ? `${key === "dramas" ? "주연배우" : "출연진"}: ${escapeHtml(item.cast)}<br>` : ""}
+      ${item.cast ? `${escapeHtml(item.cast)}<br>` : ""}
       ${item.genre ? `장르: ${escapeHtml(item.genre)}` : ""}
     `;
     bodyText = item.synopsis || "등록된 줄거리가 없어요. 편집에서 추가해보세요.";
@@ -846,7 +851,7 @@ function openEditModal(key, id) {
       <div class="field"><label>제목</label><input id="f-title" value="${escapeAttr(item.title)}"></div>
       <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
       <div class="field"><label>방송사/채널</label><input id="f-bc" value="${escapeAttr(item.broadcaster || "")}"></div>
-      <div class="field"><label>${key === "dramas" ? "주연배우" : "출연진"} (쉼표로 구분)</label><input id="f-cast" value="${escapeAttr(item.cast || "")}"></div>
+      <div class="field"><label>배우 (쉼표로 구분)</label><input id="f-cast" value="${escapeAttr(item.cast || "")}"></div>
       <div class="field"><label>장르 (쉼표로 구분)</label><input id="f-genre" value="${escapeAttr(item.genre || "")}"></div>
       <div class="field"><label>줄거리</label><textarea id="f-syn">${escapeHtml(item.synopsis || "")}</textarea></div>
       <div class="modal-actions">

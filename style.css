@@ -440,89 +440,23 @@ body {
   font-size: 13px;
 }
 
-/* ---------- Performance calendar (full-year scrollable timeline) ---------- */
-.timeline {
+/* ---------- Filter / sort bar ---------- */
+.filter-bar {
   display: flex;
-  flex-direction: column;
-  gap: 28px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
-
-.month-title {
-  font-size: 15px;
-  font-weight: 800;
-  margin-bottom: 10px;
-}
-
-.calendar {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-}
-
-.cal-weekday {
-  text-align: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  padding-bottom: 4px;
-}
-
-.cal-day {
-  background: var(--bg-soft);
-  border-radius: 8px;
-  min-height: 58px;
-  padding: 4px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.cal-day.empty { background: transparent; }
-
-.cal-day .daynum {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--text-muted);
-  align-self: flex-start;
-}
-
-.cal-day.has-event {
-  cursor: pointer;
-  background: var(--paper);
-}
-.cal-day.has-event .daynum { color: var(--ink-dim); }
-.cal-day.has-event:active { filter: brightness(0.95); }
-
-.cal-poster {
-  width: 60%;
-  aspect-ratio: 2/3;
-  border-radius: 4px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: #fff;
-  margin-top: 2px;
-  position: relative;
-}
-.cal-poster img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
-
-.cal-day .more {
-  position: absolute;
-  bottom: 2px;
-  right: 3px;
-  font-size: 9px;
-  font-weight: 800;
-  color: var(--ink);
-  background: rgba(255,255,255,0.7);
+.filter-input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--rail);
+  border: 1px solid rgba(8,28,21,0.15);
+  color: var(--text-on-dark);
+  padding: 9px 12px;
   border-radius: 999px;
-  padding: 0 4px;
 }
-
-@media (min-width: 700px) {
-  .cal-day { min-height: 88px; }
-}
+.filter-input::placeholder { color: var(--text-muted); }
 
 @media (max-width: 640px) {
   .gate-header { flex-direction: column; align-items: flex-start; }

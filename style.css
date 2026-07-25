@@ -26,7 +26,7 @@
 
 * { box-sizing: border-box; }
 
-.stub, .list-stub, .btn, .tab-btn, .filter-select, .filter-input {
+.stub, .list-stub, .btn, .tab-btn, .filter-select {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
@@ -128,7 +128,9 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
-  margin-bottom: 28px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px dashed rgba(38,38,44,0.14);
 }
 
 .insight-card {
@@ -445,18 +447,6 @@ body {
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
-.filter-input {
-  flex: 1;
-  min-width: 140px;
-  font-family: inherit;
-  font-size: 13px;
-  background: var(--rail);
-  border: 1px solid rgba(38,38,44,0.15);
-  color: var(--text-on-dark);
-  padding: 9px 12px;
-  border-radius: 999px;
-}
-.filter-input::placeholder { color: var(--text-muted); }
 
 .filter-select {
   font-family: inherit;

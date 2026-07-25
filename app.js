@@ -155,7 +155,16 @@ function sortValue(key, item) {
   if (key === "dramas" || key === "shows") {
     if (f.sortBy === "broadcaster") return `${(item.broadcaster || "zzz").toLowerCase()}_${(item.title || "").toLowerCase()}`;
     if (f.sortBy === "title") return (item.title || "").toLowerCase();
-    return item.order || 0; // 시청순서
+    // 시청순서: trust the known original list over whatever happens to be
+    // stored, since Supabase doesn't guarantee row order and older records
+    // may predate the "order" field.
+    if (key === "dramas" && typeof DRAMA_ORDER_MAP !== "undefined" && DRAMA_ORDER_MAP[item.title]) {
+      return DRAMA_ORDER_MAP[item.title][0];
+    }
+    if (key === "shows" && typeof SHOW_ORDER_MAP !== "undefined" && SHOW_ORDER_MAP[item.title] !== undefined) {
+      return SHOW_ORDER_MAP[item.title];
+    }
+    return item.order || 0;
   }
   if (key === "travels") return item.startDate;
   if (key === "performances") return item.date;
@@ -312,8 +321,14 @@ function topCounts(list, splitter) {
   return sorted;
 }
 
+const EYEBROW_EMOJI = {
+  "GENRE": "🎭", "CAST": "🌟", "CHANNEL": "📡", "DROPPED": "🛑",
+  "VENUE": "🎬", "DISTANCE": "🧭", "COMPANION": "🤝", "TOP COMPANION": "💛",
+  "SPENDING": "💸", "MOST WATCHED": "🔁"
+};
 function statCard(eyebrow, big, unit, desc) {
-  return { eyebrow, big, unit, desc, kind: "stat" };
+  const emoji = EYEBROW_EMOJI[eyebrow] || (eyebrow.includes("WRAPPED") ? "🎉" : "✨");
+  return { eyebrow, big, unit, desc, emoji, kind: "stat" };
 }
 
 function buildInsightCards(tab) {
@@ -460,6 +475,7 @@ function renderInsightCardInner(card) {
       </div>
     `).join("");
     return `
+      <div class="icard-emoji">🎊</div>
       <div class="icard-title">${escapeHtml(card.title)}</div>
       <div class="icard-body">${card.body.map(p => `<p>${escapeHtml(p)}</p>`).join("")}</div>
       <div class="icard-tags">${tagsHtml}</div>
@@ -467,6 +483,7 @@ function renderInsightCardInner(card) {
     `;
   }
   return `
+    <div class="icard-emoji">${escapeHtml(card.emoji)}</div>
     <div class="icard-eyebrow">${escapeHtml(card.eyebrow)}</div>
     <div class="icard-big">${escapeHtml(card.big)}</div>
     <div class="icard-unit">${escapeHtml(card.unit)}</div>
@@ -474,7 +491,14 @@ function renderInsightCardInner(card) {
   `;
 }
 
-const INSIGHT_CARD_PALETTE = ["#a2d2ff", "#cdb4db", "#ffc8dd", "#cbf3f0", "#feeafa", "#a9d6e5"];
+const INSIGHT_CARD_PALETTE = [
+  "linear-gradient(150deg, #4361ee, #4cc9f0)",
+  "linear-gradient(150deg, #7209b7, #d6249f)",
+  "linear-gradient(150deg, #f72585, #ff8fa3)",
+  "linear-gradient(150deg, #06a77d, #4ce0b3)",
+  "linear-gradient(150deg, #f77f00, #ffca3a)",
+  "linear-gradient(150deg, #3a0ca3, #7209b7)"
+];
 
 function renderInsights(tab) {
   const cards = buildInsightCards(tab);

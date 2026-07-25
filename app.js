@@ -139,9 +139,9 @@ const STATUS_ORDER = ["보는중", "완료", "중도하차"];
 
 // ====================== Filter / sort ======================
 const filterState = {
-  dramas: { sort: "asc", sortBy: "title", broadcaster: "" },
-  shows: { sort: "asc", sortBy: "title", broadcaster: "" },
-  movies: { sort: "asc", sortBy: "order", type: "" },
+  dramas: { sort: "asc", sortBy: "order" },
+  shows: { sort: "asc", sortBy: "order" },
+  movies: { sort: "asc", sortBy: "order" },
   travels: { sort: "asc", region: "" },
   performances: { sort: "asc" }
 };
@@ -149,12 +149,13 @@ const filterState = {
 function sortValue(key, item) {
   const f = filterState[key];
   if (key === "movies") {
-    if (f.sortBy === "type") return `${item.type}_${String(item.order).padStart(4, "0")}`;
-    return item.order;
+    if (f.sortBy === "type") return `${item.type}_${String(item.order || 0).padStart(4, "0")}`;
+    return item.order || 0;
   }
   if (key === "dramas" || key === "shows") {
     if (f.sortBy === "broadcaster") return `${(item.broadcaster || "zzz").toLowerCase()}_${(item.title || "").toLowerCase()}`;
-    return (item.title || "").toLowerCase();
+    if (f.sortBy === "title") return (item.title || "").toLowerCase();
+    return item.order || 0; // 시청순서
   }
   if (key === "travels") return item.startDate;
   if (key === "performances") return item.date;
@@ -164,12 +165,6 @@ function sortValue(key, item) {
 function applyFilterSort(key, list) {
   const f = filterState[key];
   let out = list;
-  if ((key === "dramas" || key === "shows") && f.broadcaster) {
-    out = out.filter(item => (item.broadcaster || "") === f.broadcaster);
-  }
-  if (key === "movies" && f.type) {
-    out = out.filter(item => item.type === f.type);
-  }
   if (key === "travels" && f.region) {
     const wantIntl = f.region === "international";
     out = out.filter(item => !!item.international === wantIntl);
@@ -188,23 +183,14 @@ function distinctValues(list, field) {
   return Array.from(new Set(list.map(x => x[field]).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ko"));
 }
 
-function renderBroadcasterFilter(key) {
-  const options = distinctValues(state[key], "broadcaster");
-  if (!options.length) return "";
-  const current = filterState[key].broadcaster || "";
-  return `<select class="filter-select" data-filter-key="${key}" data-filter-field="broadcaster">
-    <option value="">전체 방송사/채널</option>
-    ${options.map(o => `<option value="${escapeAttr(o)}" ${current === o ? "selected" : ""}>${escapeHtml(o)}</option>`).join("")}
-  </select>`;
-}
-
 // "정렬 기준" — groups everything by broadcaster/viewing-method instead of
 // filtering any of it out, so e.g. all OTT and all 영화관 items are visible
 // together, just clustered by type.
 function renderSortByFilter(key) {
   if (key === "dramas" || key === "shows") {
-    const current = filterState[key].sortBy || "title";
+    const current = filterState[key].sortBy || "order";
     return `<select class="filter-select" data-filter-key="${key}" data-filter-field="sortBy">
+      <option value="order" ${current === "order" ? "selected" : ""}>시청 순서대로</option>
       <option value="title" ${current === "title" ? "selected" : ""}>제목순</option>
       <option value="broadcaster" ${current === "broadcaster" ? "selected" : ""}>방송사별로 모아보기</option>
     </select>`;
@@ -217,15 +203,6 @@ function renderSortByFilter(key) {
     </select>`;
   }
   return "";
-}
-
-function renderMovieTypeFilter() {
-  const current = filterState.movies.type || "";
-  return `<select class="filter-select" data-filter-key="movies" data-filter-field="type">
-    <option value="">전체</option>
-    <option value="영화관" ${current === "영화관" ? "selected" : ""}>영화관</option>
-    <option value="OTT" ${current === "OTT" ? "selected" : ""}>OTT</option>
-  </select>`;
 }
 
 function renderRegionFilter() {
@@ -242,7 +219,7 @@ function renderFilterBar(key, extraSelectHtml) {
   return `
     <div class="filter-bar">
       ${extraSelectHtml || ""}
-      <button class="btn small" data-action="toggleSort" data-key="${key}">${sort === "asc" ? "🔼 오름차순" : "🔽 내림차순"}</button>
+      <button class="btn small" data-action="toggleSort" data-key="${key}">${sort === "asc" ? "오름차순" : "내림차순"}</button>
     </div>
   `;
 }
@@ -335,35 +312,52 @@ function topCounts(list, splitter) {
   return sorted;
 }
 
-function renderInsights(tab) {
+function buildInsightData(tab) {
   if (tab === "dramas" || tab === "shows") {
     const list = state[tab];
+    const label = tab === "dramas" ? "드라마" : "예능&교양";
     const done = list.filter(x => x.status === "완료").length;
     const watching = list.filter(x => x.status === "보는중").length;
     const dropped = list.filter(x => x.status === "중도하차").length;
     const castCounts = topCounts(list.map(x => x.cast).filter(Boolean), /[,\/]/);
     const genreCounts = topCounts(list.map(x => x.genre).filter(Boolean), /[,\/]/);
     const bcCounts = topCounts(list.map(x => x.broadcaster).filter(Boolean), /[,\/]/);
-    return `<div class="insights">
-      ${insightCard(done, "시청 완료", `보는 중 ${watching} · 중도하차 ${dropped}`)}
-      ${insightCard(list.length, "전체 등록 편수", null)}
-      ${genreCounts.length ? insightCard(genreCounts[0][0], "최다 장르", `${genreCounts[0][1]}편 · 카드 편집에서 장르를 태그해보세요`) : insightCard("—", "최다 장르", "카드의 편집 버튼에서 장르를 추가하면 여기 표시돼요")}
-      ${castCounts.length ? insightCard(castCounts[0][0], "최다 등장 배우/출연진", `${castCounts[0][1]}편에 등장`) : insightCard("—", "최다 등장 배우/출연진", "카드의 편집 버튼에서 배우를 추가하면 여기 표시돼요")}
-      ${bcCounts.length ? insightCard(bcCounts[0][0], "최다 방송사/채널", `${bcCounts[0][1]}편`) : ""}
-    </div>`;
+
+    const body = [
+      `2026년, «${label}» ${list.length}편을 기록했어요. 완료 ${done}편${watching ? ` · 보는 중 ${watching}편` : ""}${dropped ? ` · 중도하차 ${dropped}편` : ""}이에요.`
+    ];
+    if (genreCounts.length) body.push(`가장 즐겨 본 장르는 «${genreCounts[0][0]}»(${genreCounts[0][1]}편)였어요.`);
+    if (castCounts.length) body.push(`«${castCounts[0][0]}»이(가) 나온 작품을 ${castCounts[0][1]}편 봤어요.`);
+    if (bcCounts.length) body.push(`가장 많이 본 방송사/채널은 «${bcCounts[0][0]}»(${bcCounts[0][1]}편)예요.`);
+
+    const tags = [`#총_${list.length}편`, `#완료_${done}편`];
+    if (dropped) tags.push(`#중도하차_${dropped}편`);
+    if (genreCounts.length) tags.push(`#${genreCounts[0][0]}`);
+    if (bcCounts.length) tags.push(`#${bcCounts[0][0]}`);
+
+    const highlights = [];
+    if (castCounts.length) highlights.push({ label: "최다 등장 배우/출연진", value: castCounts[0][0], sub: `${castCounts[0][1]}편에 등장` });
+    if (bcCounts.length) highlights.push({ label: "최다 방송사/채널", value: bcCounts[0][0], sub: `${bcCounts[0][1]}편 시청` });
+
+    return { title: `2026 ${label} 결산`, body, tags, highlights };
   }
 
   if (tab === "movies") {
     const list = state.movies;
     const ott = list.filter(x => x.type === "OTT").length;
     const theater = list.filter(x => x.type === "영화관").length;
+    const pct = list.length ? Math.round((theater / list.length) * 100) : 0;
     const castCounts = topCounts(list.map(x => x.cast).filter(Boolean), /[,\/]/);
-    return `<div class="insights">
-      ${insightCard(list.length, "총 관람 편수", null)}
-      ${insightCard(`${theater} : ${ott}`, "영화관 : OTT 비중", `영화관 ${theater}편 · OTT ${ott}편`)}
-      ${insightCard(Math.round((theater / list.length) * 100) + "%", "영화관 관람 비중", null)}
-      ${castCounts.length ? insightCard(castCounts[0][0], "최다 등장 배우", `${castCounts[0][1]}편에 등장`) : insightCard("—", "최다 등장 배우", "카드의 편집 버튼에서 배우를 추가해보세요")}
-    </div>`;
+
+    const body = [`2026년, 영화 ${list.length}편을 봤어요. 영화관 ${theater}편 · OTT ${ott}편으로, 영화관 관람 비중이 ${pct}%였어요.`];
+    if (castCounts.length) body.push(`«${castCounts[0][0]}»이(가) 나온 영화를 ${castCounts[0][1]}편 봤어요.`);
+
+    const tags = [`#총_${list.length}편`, `#영화관_${theater}편`, `#OTT_${ott}편`];
+
+    const highlights = [];
+    if (castCounts.length) highlights.push({ label: "최다 등장 배우", value: castCounts[0][0], sub: `${castCounts[0][1]}편에 등장` });
+
+    return { title: "2026 영화 결산", body, tags, highlights };
   }
 
   if (tab === "travels") {
@@ -373,16 +367,21 @@ function renderInsights(tab) {
     const solo = list.filter(x => x.solo).length;
     const withOthers = list.length - solo;
     const totalKm = list.reduce((a, x) => a + (Number(x.distanceKm) || 0), 0);
-    // strip "지역: " style labels before counting companions
     const flat = list.map(x => (x.companions || "").replace(/[가-힣]+:\s*/g, "")).join(",");
-    const counts2 = topCounts([flat], /,/);
-    return `<div class="insights">
-      ${insightCard(list.length, "총 여행 횟수", null)}
-      ${insightCard(`${domestic} : ${intl}`, "국내 : 해외", `국내 ${domestic}회 · 해외 ${intl}회`)}
-      ${insightCard(`${solo} : ${withOthers}`, "혼자 : 함께", `혼자 ${solo}회 · 함께 ${withOthers}회`)}
-      ${insightCard(totalKm.toLocaleString(), "총 이동 거리(km, 추정)", "KTX는 서울역, 국내선은 김포·해외는 인천 기준 편도 추정치")}
-      ${counts2.length ? insightCard(counts2[0][0], "최다 함께", `${counts2[0][1]}회 함께함`) : ""}
-    </div>`;
+    const companionCounts = topCounts([flat], /,/);
+
+    const body = [
+      `2026년, 여행을 총 ${list.length}번 다녀왔어요. 국내 ${domestic}회 · 해외 ${intl}회, 추정 이동거리는 편도 총 ${totalKm.toLocaleString()}km예요.`,
+      `혼자 떠난 여행이 ${solo}회, 함께한 여행이 ${withOthers}회였어요.`
+    ];
+    if (companionCounts.length) body.push(`가장 자주 함께한 사람은 «${companionCounts[0][0]}»(${companionCounts[0][1]}회)예요.`);
+
+    const tags = [`#여행_${list.length}회`, `#국내_${domestic}회`, `#해외_${intl}회`, `#이동거리_${totalKm.toLocaleString()}km`];
+
+    const highlights = [];
+    if (companionCounts.length) highlights.push({ label: "최다 동행", value: companionCounts[0][0], sub: `${companionCounts[0][1]}회 함께함` });
+
+    return { title: "2026 여행 결산", body, tags, highlights };
   }
 
   if (tab === "performances") {
@@ -394,15 +393,49 @@ function renderInsights(tab) {
     list.forEach(x => { titleCounts[x.title] = (titleCounts[x.title] || 0) + 1; });
     const topTitle = Object.entries(titleCounts).sort((a, b) => b[1] - a[1])[0];
     const avg = list.length ? Math.round(total / list.length) : 0;
-    return `<div class="insights">
-      ${insightCard(list.length, "총 관람 횟수", null)}
-      ${insightCard("₩" + total.toLocaleString(), "총 지출", `평균 ₩${avg.toLocaleString()} / 회`)}
-      ${insightCard(`${solo} : ${withOthers}`, "혼자 : 함께", `혼자 ${solo}회 · 함께 ${withOthers}회`)}
-      ${topTitle ? insightCard(topTitle[0], "가장 많이 본 공연", `${topTitle[1]}회 관람`) : ""}
-    </div>`;
+
+    const body = [
+      `2026년, 공연을 총 ${list.length}번 봤어요. 총 지출은 ₩${total.toLocaleString()}, 평균 ₩${avg.toLocaleString()}/회였어요.`,
+      `혼자 본 공연이 ${solo}회, 함께 본 공연이 ${withOthers}회였어요.`
+    ];
+    if (topTitle) body.push(`가장 많이 본 공연은 «${topTitle[0]}»(${topTitle[1]}회)예요.`);
+
+    const tags = [`#공연_${list.length}회`, `#총지출_₩${total.toLocaleString()}`, `#혼자_${solo}회`, `#함께_${withOthers}회`];
+
+    const highlights = [];
+    if (topTitle) highlights.push({ label: "가장 많이 본 공연", value: topTitle[0], sub: `${topTitle[1]}회 관람` });
+
+    return { title: "2026 공연 결산", body, tags, highlights };
   }
 
-  return "";
+  return null;
+}
+
+function renderInsights(tab) {
+  const data = buildInsightData(tab);
+  if (!data) return "";
+
+  const tagsHtml = data.tags.map(t => `<span class="icard-tag">${escapeHtml(t)}</span>`).join("");
+  const highlightsHtml = data.highlights.map(h => `
+    <div class="icard-highlight">
+      <div class="h-label">${escapeHtml(h.label)}</div>
+      <div class="h-value">${escapeHtml(h.value)}</div>
+      <div class="h-sub">${escapeHtml(h.sub)}</div>
+    </div>
+  `).join("");
+
+  return `
+    <div class="insight-frame">
+      <div class="insight-card-9x16" id="insight-export-card">
+        <div class="icard-title">${escapeHtml(data.title)}</div>
+        <div class="icard-body">${data.body.map(p => `<p>${escapeHtml(p)}</p>`).join("")}</div>
+        <div class="icard-tags">${tagsHtml}</div>
+        ${highlightsHtml ? `<div class="icard-highlights">${highlightsHtml}</div>` : ""}
+        <div class="icard-footer">2026 결산 · ${escapeHtml(data.title.replace("2026 ", ""))}</div>
+      </div>
+      <button class="btn primary" id="insight-save-btn" data-action="saveInsight" data-tab="${tab}">📸 이미지로 저장</button>
+    </div>
+  `;
 }
 
 // ====================== Content ======================
@@ -418,7 +451,7 @@ function renderContent(tab) {
 function renderMediaTab(key, emoji, grouped, bcLabel, castLabel) {
   const filtered = applyFilterSort(key, state[key]);
   const addBtn = `<div class="section-row"><h2>${TABS.find(t=>t.key===key).label} 목록</h2><button class="btn primary" data-add="${key}">+ 추가하기</button></div>`
-    + renderFilterBar(key, renderBroadcasterFilter(key) + renderSortByFilter(key));
+    + renderFilterBar(key, renderSortByFilter(key));
   if (!grouped) return addBtn + renderGrid(filtered, key, emoji, bcLabel, castLabel);
 
   const groups = STATUS_ORDER
@@ -460,7 +493,7 @@ function mediaCard(item, key, emoji, bcLabel, castLabel) {
 function renderMoviesTab() {
   const filtered = applyFilterSort("movies", state.movies);
   const addBtn = `<div class="section-row"><h2>영화 목록</h2><button class="btn primary" data-add="movies">+ 추가하기</button></div>`
-    + renderFilterBar("movies", renderMovieTypeFilter() + renderSortByFilter("movies"));
+    + renderFilterBar("movies", renderSortByFilter("movies"));
   return addBtn + `<div class="grid">${filtered.map(item => movieCard(item)).join("")}</div>`;
 }
 
@@ -587,7 +620,40 @@ function attachEvents() {
       render();
     });
   });
+  root.querySelectorAll('[data-action="saveInsight"]').forEach(btn => {
+    btn.addEventListener("click", () => saveInsightImage(btn.dataset.tab));
+  });
   attachSwipe();
+}
+
+// ---- Export the insight card as a transparent-background PNG
+async function saveInsightImage(tab) {
+  const cardEl = document.getElementById("insight-export-card");
+  const btn = document.getElementById("insight-save-btn");
+  if (!cardEl) return;
+  if (typeof html2canvas === "undefined") {
+    alert("이미지 저장 기능을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 시도해주세요.");
+    return;
+  }
+  const originalText = btn.textContent;
+  btn.style.display = "none"; // exclude the save button itself from the capture
+  try {
+    const canvas = await html2canvas(cardEl, {
+      backgroundColor: null, // transparent outside the card's own rounded shape
+      scale: 2,
+      useCORS: true
+    });
+    const link = document.createElement("a");
+    link.download = `2026결산_${tab}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  } catch (e) {
+    console.warn("insight image export failed", e);
+    alert("이미지를 만드는 중 문제가 생겼어요. 포스터 이미지가 있다면 외부 이미지 로딩 문제일 수 있어요.");
+  } finally {
+    btn.style.display = "";
+    btn.textContent = originalText;
+  }
 }
 
 // ---- Swipe left/right anywhere in the tab area (insights + content) to switch tabs
@@ -986,7 +1052,8 @@ function openAddModal(key) {
     document.getElementById("modal-save").onclick = () => {
       const title = document.getElementById("f-title").value.trim();
       if (!title) return;
-      const newItem = { id: uid(key[0]), title, status: "보는중" };
+      const nextOrder = state[key].length ? Math.max(...state[key].map(x => x.order || 0)) + 1 : 1;
+      const newItem = { id: uid(key[0]), title, status: "보는중", order: nextOrder };
       state[key].push(newItem);
       persistUpsert(key, newItem); closeModal(); render();
     };
@@ -1086,11 +1153,64 @@ function updateClock() {
   el.innerHTML = `2026 결산 진행 중<br><b>${now.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</b>`;
 }
 
+// ====================== One-time data migration ======================
+// Backfills the "order" field (viewing sequence) onto existing drama/show
+// records that predate it, and adds any item that was in the user's list but
+// missing from the live data (e.g. 참교육). Runs once per browser via a
+// localStorage flag, and pushes fixes back to Supabase if connected.
+const DRAMA_ORDER_MAP = {
+  "프로보노": [1, "완료"], "기묘한 이야기 시즌5": [2, "완료"], "자백의 대가": [3, "완료"],
+  "당신이 죽였다": [4, "완료"], "언더커버 미쓰홍": [5, "완료"], "브리저튼 시즌4": [6, "완료"],
+  "샬럿 왕비 : 브리저튼 외전": [7, "완료"], "레이디 두아": [8, "완료"], "프렌즈 시즌1": [9, "완료"],
+  "사랑의 이해": [10, "완료"], "은중과 상연": [11, "완료"], "월간남친": [12, "완료"],
+  "닥터신": [13, "완료"], "샤이닝": [14, "완료"], "유미의 세포들3": [15, "완료"],
+  "허수아비": [16, "완료"], "멋진 신세계": [17, "완료"], "프렌즈 시즌2": [18, "완료"],
+  "옥씨부인전": [19, "완료"], "백번의추억": [20, "완료"], "맨 끝줄 소년": [21, "완료"],
+  "결혼의 완성": [22, "보는중"], "더 글로리": [23, "보는중"], "동궁": [24, "보는중"],
+  "메이드 인 코리아": [25, "중도하차"], "은애하는 도적님아": [26, "중도하차"],
+  "은밀한 감사": [27, "중도하차"], "취사병 전설이 되다": [28, "중도하차"],
+  "신입사원 강회장": [29, "중도하차"], "참교육": [30, "중도하차"], "김부장": [31, "중도하차"]
+};
+const SHOW_ORDER_MAP = {
+  "흑백요리사2": 1, "냉장고를 부탁해": 2, "풍향고 시즌2": 3,
+  "스카이스크레이퍼 라이브 : 초고층 빌딩을 오르다": 4, "제프리 앱스타인 : 괴물이 된 억만장자": 5,
+  "철학자의 요리": 6, "더 코리안 셰프": 7, "이서진의 달라달라": 8, "유퀴즈온더블록": 9,
+  "공양간의 셰프들": 10, "다큐3일": 11, "마이클잭슨 재판 : 평결": 12,
+  "콩콩팜팜": 13, "언더커버 셰프": 14, "모태솔로지만 연애는 하고싶어2": 15, "스트릿 레스토랑 파이터": 16
+};
+
+async function migrateOrderFields() {
+  const FLAG = "recap2026_order_migration_v1";
+  try { if (localStorage.getItem(FLAG) === "done") return; } catch (e) {}
+
+  let changed = false;
+
+  state.dramas.forEach(item => {
+    const entry = DRAMA_ORDER_MAP[item.title];
+    if (entry && item.order !== entry[0]) { item.order = entry[0]; changed = true; persistUpsert("dramas", item); }
+  });
+  if (!state.dramas.some(x => x.title === "참교육")) {
+    const newItem = { id: uid("d"), title: "참교육", status: "중도하차", order: 30 };
+    state.dramas.push(newItem);
+    persistUpsert("dramas", newItem);
+    changed = true;
+  }
+
+  state.shows.forEach(item => {
+    const ord = SHOW_ORDER_MAP[item.title];
+    if (ord && item.order !== ord) { item.order = ord; changed = true; persistUpsert("shows", item); }
+  });
+
+  try { localStorage.setItem(FLAG, "done"); } catch (e) {}
+  if (changed) render();
+}
+
 // ====================== Init ======================
 async function boot() {
   updateClock();
   setSyncStatus("연결 확인 중…");
   await initState();
+  await migrateOrderFields();
   render();
 }
 boot();

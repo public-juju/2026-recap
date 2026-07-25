@@ -474,13 +474,15 @@ function renderInsightCardInner(card) {
   `;
 }
 
+const INSIGHT_CARD_PALETTE = ["#a2d2ff", "#cdb4db", "#ffc8dd", "#cbf3f0", "#feeafa", "#a9d6e5"];
+
 function renderInsights(tab) {
   const cards = buildInsightCards(tab);
   if (!cards.length) return "";
 
   const slidesHtml = cards.map((card, i) => `
     <div class="insight-slide">
-      <div class="insight-card-9x16" id="insight-export-card-${i}">
+      <div class="insight-card-9x16" id="insight-export-card-${i}" style="background:${INSIGHT_CARD_PALETTE[i % INSIGHT_CARD_PALETTE.length]}">
         ${renderInsightCardInner(card)}
         <div class="icard-footer">2026 · ${i + 1} / ${cards.length}</div>
       </div>

@@ -137,10 +137,10 @@ const STATUS_ORDER = ["보는중", "완료", "중도하차"];
 
 // ====================== Filter / sort ======================
 const filterState = {
-  dramas: { query: "", sort: "asc" },
-  shows: { query: "", sort: "asc" },
-  movies: { query: "", sort: "asc" },
-  travels: { query: "", sort: "asc" },
+  dramas: { query: "", sort: "asc", broadcaster: "" },
+  shows: { query: "", sort: "asc", broadcaster: "" },
+  movies: { query: "", sort: "asc", type: "" },
+  travels: { query: "", sort: "asc", region: "" },
   performances: { query: "", sort: "asc" }
 };
 
@@ -162,27 +162,70 @@ function sortValue(key, item) {
 }
 
 function applyFilterSort(key, list) {
-  const { query, sort } = filterState[key];
+  const f = filterState[key];
   let out = list;
-  if (query.trim()) {
-    const q = query.trim().toLowerCase();
+  if (f.query.trim()) {
+    const q = f.query.trim().toLowerCase();
     out = out.filter(item => searchableText(key, item).toLowerCase().includes(q));
+  }
+  if ((key === "dramas" || key === "shows") && f.broadcaster) {
+    out = out.filter(item => (item.broadcaster || "") === f.broadcaster);
+  }
+  if (key === "movies" && f.type) {
+    out = out.filter(item => item.type === f.type);
+  }
+  if (key === "travels" && f.region) {
+    const wantIntl = f.region === "international";
+    out = out.filter(item => !!item.international === wantIntl);
   }
   out = [...out].sort((a, b) => {
     const va = sortValue(key, a), vb = sortValue(key, b);
     const cmp = (typeof va === "number" && typeof vb === "number")
       ? va - vb
       : String(va).localeCompare(String(vb), "ko");
-    return sort === "asc" ? cmp : -cmp;
+    return f.sort === "asc" ? cmp : -cmp;
   });
   return out;
 }
 
-function renderFilterBar(key, placeholder) {
+function distinctValues(list, field) {
+  return Array.from(new Set(list.map(x => x[field]).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ko"));
+}
+
+function renderBroadcasterFilter(key) {
+  const options = distinctValues(state[key], "broadcaster");
+  if (!options.length) return "";
+  const current = filterState[key].broadcaster || "";
+  return `<select class="filter-select" data-filter-key="${key}" data-filter-field="broadcaster">
+    <option value="">전체 방송사/채널</option>
+    ${options.map(o => `<option value="${escapeAttr(o)}" ${current === o ? "selected" : ""}>${escapeHtml(o)}</option>`).join("")}
+  </select>`;
+}
+
+function renderMovieTypeFilter() {
+  const current = filterState.movies.type || "";
+  return `<select class="filter-select" data-filter-key="movies" data-filter-field="type">
+    <option value="">전체</option>
+    <option value="영화관" ${current === "영화관" ? "selected" : ""}>영화관</option>
+    <option value="OTT" ${current === "OTT" ? "selected" : ""}>OTT</option>
+  </select>`;
+}
+
+function renderRegionFilter() {
+  const current = filterState.travels.region || "";
+  return `<select class="filter-select" data-filter-key="travels" data-filter-field="region">
+    <option value="">전체</option>
+    <option value="domestic" ${current === "domestic" ? "selected" : ""}>국내</option>
+    <option value="international" ${current === "international" ? "selected" : ""}>해외</option>
+  </select>`;
+}
+
+function renderFilterBar(key, placeholder, extraSelectHtml) {
   const { query, sort } = filterState[key];
   return `
     <div class="filter-bar">
       <input type="text" class="filter-input" data-filter-key="${key}" placeholder="${escapeAttr(placeholder || "검색")}" value="${escapeAttr(query)}">
+      ${extraSelectHtml || ""}
       <button class="btn small" data-action="toggleSort" data-key="${key}">${sort === "asc" ? "🔼 오름차순" : "🔽 내림차순"}</button>
     </div>
   `;
@@ -207,6 +250,15 @@ function posterBlock(item, emoji) {
     return `<img src="${escapeAttr(item.poster)}" alt="" onerror="this.style.display='none'">`;
   }
   return `<span>${emoji}<br>${escapeHtml(item.title)}</span>`;
+}
+
+// Give each broadcaster/channel its own consistent shade from the site's blue
+// palette, so the badge on a card is a quick visual cue for "which channel".
+const BADGE_PALETTE = ["#03045e", "#023e8a", "#0077b6", "#0096c7", "#00b4d8", "#48cae4", "#90e0ef", "#ade8f4", "#caf0f8"];
+function broadcasterColor(name) {
+  const h = hashStr(name || "");
+  const idx = h % BADGE_PALETTE.length;
+  return { bg: BADGE_PALETTE[idx], text: idx >= 6 ? "var(--ink)" : "#fff" };
 }
 
 // ====================== Escaping ======================
@@ -345,7 +397,7 @@ function renderContent(tab) {
 function renderMediaTab(key, emoji, grouped, bcLabel, castLabel) {
   const filtered = applyFilterSort(key, state[key]);
   const addBtn = `<div class="section-row"><h2>${TABS.find(t=>t.key===key).label} 목록</h2><button class="btn primary" data-add="${key}">+ 추가하기</button></div>`
-    + renderFilterBar(key, "제목·배우·방송사로 검색");
+    + renderFilterBar(key, "제목·배우·방송사로 검색", renderBroadcasterFilter(key));
   if (!grouped) return addBtn + renderGrid(filtered, key, emoji, bcLabel, castLabel);
 
   const groups = STATUS_ORDER.map(status => ({
@@ -366,9 +418,10 @@ function renderGrid(items, key, emoji, bcLabel, castLabel) {
 
 function mediaCard(item, key, emoji, bcLabel, castLabel) {
   const bg = item.poster ? "" : `style="background:${posterGradient(item.title)}"`;
+  const bc = item.broadcaster ? broadcasterColor(item.broadcaster) : null;
   return `
   <div class="stub" data-card-id="${item.id}">
-    ${item.broadcaster ? `<span class="badge" style="background:var(--accent)">${escapeHtml(item.broadcaster)}</span>` : ""}
+    ${bc ? `<span class="badge" style="background:${bc.bg};color:${bc.text}">${escapeHtml(item.broadcaster)}</span>` : ""}
     <div class="poster" ${bg} data-action="detail" data-key="${key}" data-id="${item.id}">${posterBlock(item, emoji)}</div>
     <div class="tear"></div>
     <div class="info">
@@ -384,7 +437,7 @@ function mediaCard(item, key, emoji, bcLabel, castLabel) {
 function renderMoviesTab() {
   const filtered = applyFilterSort("movies", state.movies);
   const addBtn = `<div class="section-row"><h2>영화 목록</h2><button class="btn primary" data-add="movies">+ 추가하기</button></div>`
-    + renderFilterBar("movies", "제목·배우로 검색");
+    + renderFilterBar("movies", "제목·배우로 검색", renderMovieTypeFilter());
   return addBtn + `<div class="grid">${filtered.map(item => movieCard(item)).join("")}</div>`;
 }
 
@@ -398,7 +451,7 @@ function movieCard(item) {
     <div class="tear"></div>
     <div class="info">
       <div class="title">${escapeHtml(item.title)}</div>
-      <div class="meta">${item.cast ? `주연배우: ${escapeHtml(item.cast)}` : ""}</div>
+      <div class="meta">${item.cast ? escapeHtml(item.cast) : ""}</div>
     </div>
   </div>`;
 }
@@ -406,7 +459,7 @@ function movieCard(item) {
 function renderTravelsTab() {
   const filtered = applyFilterSort("travels", state.travels);
   const addBtn = `<div class="section-row"><h2>여행 목록</h2><button class="btn primary" data-add="travels">+ 추가하기</button></div>`
-    + renderFilterBar("travels", "여행지·함께한 사람으로 검색");
+    + renderFilterBar("travels", "여행지·함께한 사람으로 검색", renderRegionFilter());
   return addBtn + `<div class="grid" style="grid-template-columns:1fr;">${filtered.map(t => travelRow(t)).join("")}</div>`;
 }
 
@@ -496,14 +549,22 @@ function attachEvents() {
   root.querySelectorAll('[data-action="detail"]').forEach(el => {
     el.addEventListener("click", () => openDetailPopup(el.dataset.key, el.dataset.id));
   });
-  root.querySelectorAll('[data-filter-key]').forEach(input => {
+  root.querySelectorAll('.filter-input[data-filter-key]').forEach(input => {
     input.addEventListener("input", () => {
       const key = input.dataset.filterKey;
       filterState[key].query = input.value;
       const cursorPos = input.selectionStart;
       render();
-      const newInput = document.querySelector(`[data-filter-key="${key}"]`);
+      const newInput = document.querySelector(`.filter-input[data-filter-key="${key}"]`);
       if (newInput) { newInput.focus(); newInput.setSelectionRange(cursorPos, cursorPos); }
+    });
+  });
+  root.querySelectorAll('.filter-select[data-filter-key]').forEach(sel => {
+    sel.addEventListener("change", () => {
+      const key = sel.dataset.filterKey;
+      const field = sel.dataset.filterField;
+      filterState[key][field] = sel.value;
+      render();
     });
   });
   root.querySelectorAll('[data-action="toggleSort"]').forEach(btn => {
@@ -714,7 +775,7 @@ function openDetailPopup(key, id) {
     `;
     bodyText = item.synopsis || "등록된 줄거리가 없어요. 편집에서 추가해보세요.";
   } else if (key === "movies") {
-    metaHtml = item.cast ? `주연배우: ${escapeHtml(item.cast)}` : "";
+    metaHtml = item.cast ? escapeHtml(item.cast) : "";
     bodyText = item.synopsis || "등록된 줄거리가 없어요. 편집에서 추가해보세요.";
   } else if (key === "performances") {
     metaHtml = `
@@ -818,7 +879,7 @@ function openEditModal(key, id) {
       <div class="field"><label>관람 방식</label>
         <select id="f-type"><option ${item.type==="OTT"?"selected":""}>OTT</option><option ${item.type==="영화관"?"selected":""}>영화관</option></select>
       </div>
-      <div class="field"><label>주연배우 (쉼표로 구분)</label><input id="f-cast" value="${escapeAttr(item.cast || "")}"></div>
+      <div class="field"><label>배우 (쉼표로 구분)</label><input id="f-cast" value="${escapeAttr(item.cast || "")}"></div>
       <div class="field"><label>줄거리</label><textarea id="f-syn">${escapeHtml(item.synopsis || "")}</textarea></div>
       <div class="modal-actions">
         <button class="btn" id="modal-cancel">취소</button>

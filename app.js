@@ -127,7 +127,8 @@ const TABS = [
   { key: "movies", label: "영화", emoji: "🎥" },
   { key: "shows", label: "예능&교양", emoji: "📺" },
   { key: "performances", label: "공연", emoji: "🫶🏻" },
-  { key: "travels", label: "여행", emoji: "✈️" }
+  { key: "travels", label: "여행", emoji: "✈️" },
+  { key: "insights", label: "통합 인사이트", emoji: "📊" }
 ];
 
 let activeTab = "dramas";
@@ -322,7 +323,8 @@ function topCounts(list, splitter) {
 const EYEBROW_EMOJI = {
   "GENRE": "🎭", "CAST": "🌟", "CHANNEL": "📡", "DROPPED": "🛑",
   "VENUE": "🎬", "DISTANCE": "🧭", "COMPANION": "🤝", "TOP COMPANION": "💛",
-  "SPENDING": "💸", "MOST WATCHED": "🔁"
+  "SPENDING": "💸", "MOST WATCHED": "🔁", "SCREEN TIME": "📺",
+  "OUT & ABOUT": "🚪", "MOST OF ALL": "🏆"
 };
 function statCard(eyebrow, big, unit, desc) {
   const emoji = EYEBROW_EMOJI[eyebrow] || (eyebrow.includes("WRAPPED") ? "🎉" : "✨");
@@ -330,6 +332,48 @@ function statCard(eyebrow, big, unit, desc) {
 }
 
 function buildInsightCards(tab) {
+  if (tab === "insights") {
+    const dramas = state.dramas, shows = state.shows, movies = state.movies, travels = state.travels, performances = state.performances;
+    const dramasDone = dramas.filter(x => x.status === "완료").length;
+    const showsDone = shows.filter(x => x.status === "완료").length;
+    const watchTotal = dramasDone + showsDone + movies.length;
+    const totalMoments = dramas.length + shows.length + movies.length + travels.length + performances.length;
+    const perfTotal = performances.reduce((a, x) => a + (Number(x.price) || 0), 0);
+    const travelKm = travels.reduce((a, x) => a + (Number(x.distanceKm) || 0), 0);
+    const outings = travels.length + performances.length;
+
+    const counts = [
+      { label: "드라마", n: dramas.length }, { label: "예능&교양", n: shows.length },
+      { label: "영화", n: movies.length }, { label: "여행", n: travels.length },
+      { label: "공연", n: performances.length }
+    ].sort((a, b) => b.n - a.n);
+
+    const cards = [
+      statCard("2026 THE YEAR WRAPPED", String(totalMoments), "개의 순간을 기록했어요",
+        `드라마 ${dramas.length}편 · 영화 ${movies.length}편 · 예능 ${shows.length}편 · 여행 ${travels.length}회 · 공연 ${performances.length}회예요.`),
+      statCard("SCREEN TIME", String(watchTotal), "편의 영상 콘텐츠", `드라마 완료 ${dramasDone}편 · 예능 완료 ${showsDone}편 · 영화 ${movies.length}편을 봤어요.`),
+      statCard("OUT & ABOUT", String(outings), "번은 집 밖으로", `여행 ${travels.length}회, 공연 ${performances.length}회로 총 ${outings}번 나갔어요.`),
+      statCard("SPENDING", "₩" + perfTotal.toLocaleString(), "공연에 쓴 돈", `공연 ${performances.length}회에 총 ₩${perfTotal.toLocaleString()}을 썼어요.`),
+      statCard("DISTANCE", travelKm.toLocaleString() + "km", "여행으로 이동한 거리(추정)", `편도 기준 추정치예요.`)
+    ];
+    if (counts.length && counts[0].n > 0) {
+      cards.push(statCard("MOST OF ALL", counts[0].label, "가장 많이 기록한 카테고리", `올해 ${counts[0].n}개로 가장 많았어요.`));
+    }
+
+    const tags = [`#총_${totalMoments}개`, `#영상_${watchTotal}편`, `#외출_${outings}회`];
+    if (perfTotal) tags.push(`#공연지출_₩${perfTotal.toLocaleString()}`);
+    if (travelKm) tags.push(`#이동거리_${travelKm.toLocaleString()}km`);
+    cards.push({
+      kind: "summary", title: "2026 종합 결산",
+      body: [
+        `2026년 한 해, 드라마·영화·예능·여행·공연을 합쳐 총 ${totalMoments}개의 기록을 남겼어요.`,
+        `영상 콘텐츠 ${watchTotal}편을 보고, ${outings}번은 여행이나 공연으로 집 밖을 나섰어요.`
+      ],
+      tags, highlights: counts[0] && counts[0].n > 0 ? [{ label: "가장 많이 기록한 카테고리", value: counts[0].label, sub: `${counts[0].n}개 기록` }] : []
+    });
+    return cards;
+  }
+
   if (tab === "dramas" || tab === "shows") {
     const list = state[tab];
     const label = tab === "dramas" ? "드라마" : "예능&교양";
@@ -529,6 +573,10 @@ function renderContent(tab) {
   if (tab === "movies") return renderMoviesTab();
   if (tab === "travels") return renderTravelsTab();
   if (tab === "performances") return renderPerformancesTab();
+  if (tab === "insights") {
+    return `<div class="section-row"><h2>2026년 전체를 한눈에</h2></div>
+      <div class="empty-state">아래 카드를 넘겨보면서 드라마·영화·예능·공연·여행을 한 번에 확인해보세요.</div>`;
+  }
   return "";
 }
 

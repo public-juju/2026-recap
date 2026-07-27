@@ -128,19 +128,31 @@ const INITIAL_DATA = {
       id: "p1", date: "2026-04-04", title: "박효신 콘서트 <LIVE A&E 2026>",
       venue: "인천 문학경기장 주경기장", price: 205700,
       seat: "좌석정보 추후 업데이트", companions: "혼자", solo: true,
-      link: "https://ticket.melon.com/performance/index.htm?prodId=212757"
+      link: "https://ticket.melon.com/performance/index.htm?prodId=212757",
+      setlist: [
+        ["HAPPY TOGETHER", "Shine Your Light", "戀人 (연인)", "Home", "AE", "Prayer", "눈의 꽃", "Winter Ahead", "숨", "HERO", "Miracle", "Alice", "The Castle of Zoltar", "V", "Gift", "Any Love"],
+        ["야생화", "Stellar Night"]
+      ]
     },
     {
       id: "p2", date: "2026-04-05", title: "박효신 콘서트 <LIVE A&E 2026>",
       venue: "인천 문학경기장 주경기장", price: 224000,
       seat: "현장수령 Floor층 5R구역 15열 10번", companions: "혼자", solo: true,
-      link: "https://ticket.melon.com/performance/index.htm?prodId=212757"
+      link: "https://ticket.melon.com/performance/index.htm?prodId=212757",
+      setlist: [
+        ["HAPPY TOGETHER", "Shine Your Light", "戀人 (연인)", "Home", "AE", "Prayer", "눈의 꽃", "Winter Ahead", "숨", "HERO", "Miracle", "Alice", "The Castle of Zoltar", "V", "Gift", "Any Love"],
+        ["야생화", "Stellar Night"]
+      ]
     },
     {
       id: "p3", date: "2026-04-11", title: "박효신 콘서트 <LIVE A&E 2026>",
       venue: "인천 문학경기장 주경기장", price: 224000,
       seat: "현장수령 Floor층 1구역 5열 19번", companions: "혼자", solo: true,
-      link: "https://ticket.melon.com/performance/index.htm?prodId=212757"
+      link: "https://ticket.melon.com/performance/index.htm?prodId=212757",
+      setlist: [
+        ["HAPPY TOGETHER", "Shine Your Light", "戀人 (연인)", "Home", "AE", "Sogno Stellare", "Prayer", "눈의 꽃", "Winter Ahead", "숨", "HERO", "Miracle", "Alice", "The Castle of Zoltar", "V", "Gift", "Any Love"],
+        ["추억은 사랑을 닮아", "I'm your friend", "야생화", "Stellar Night"]
+      ]
     },
     {
       id: "p4", date: "2026-04-18", title: "패닉 콘서트 <PANIC IS COMING>",

@@ -152,7 +152,16 @@ const INITIAL_DATA = {
       id: "p5", date: "2026-05-03", title: "이소라 여덟 번째 봄 콘서트 '봄의 미로'",
       venue: "경희대학교 평화의전당", price: 115700,
       seat: "3층 D열 199번", companions: "혼자", solo: true,
-      link: "https://www.ticketlink.co.kr/product/62098"
+      link: "https://www.ticketlink.co.kr/product/62098",
+      setlist: [
+        ["바라봄", "Track9", "Fortuneteller", "나를 사랑하지 않는 그대에게", "사랑이 아니라고 하지 말아요"],
+        ["그대가 이렇게 내맘에", "봄", "별", "Track 11"],
+        ["나를 사랑하지않는그대에게", "그대와춤을", "청혼"],
+        ["Track 3"],
+        ["믿음", "Tears", "난행복해", "처음느낌그대로"],
+        ["바람이분다", "순수의시절"],
+        ["내곁에서 떠나가지말아요"]
+      ]
     },
     {
       id: "p6", date: "2026-06-10", title: "뮤지컬 베토벤",

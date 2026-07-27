@@ -141,7 +141,7 @@ const INITIAL_DATA = {
       link: "https://ticket.melon.com/performance/index.htm?prodId=212757",
       setlist: [
         ["HAPPY TOGETHER", "Shine Your Light", "戀人 (연인)", "Home", "AE", "Sogno Stellare", "Prayer", "눈의 꽃", "Winter Ahead", "숨", "HERO", "Miracle", "Alice", "The Castle of Zoltar", "V", "Gift", "Any Love"],
-        ["추억은 사랑을 닮아", "I'm your friend", "야생화", "Stellar Night"]
+        ["야생화", "Stellar Night"]
       ]
     },
     {

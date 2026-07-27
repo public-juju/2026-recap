@@ -140,8 +140,8 @@ const INITIAL_DATA = {
       seat: "현장수령 Floor층 5R구역 15열 10번", companions: "혼자", solo: true,
       link: "https://ticket.melon.com/performance/index.htm?prodId=212757",
       setlist: [
-        ["HAPPY TOGETHER", "Shine Your Light", "戀人 (연인)", "Home", "AE", "Prayer", "눈의 꽃", "Winter Ahead", "숨", "HERO", "Miracle", "Alice", "The Castle of Zoltar", "V", "Gift", "Any Love"],
-        ["야생화", "Stellar Night"]
+        ["HAPPY TOGETHER", "Shine Your Light", "戀人 (연인)", "Home", "AE", "Sogno Stellare", "Prayer", "눈의 꽃", "Winter Ahead", "숨", "HERO", "Miracle", "Alice", "The Castle of Zoltar", "V", "Gift", "Any Love"],
+        ["추억은 사랑을 닮아", "I'm your friend", "야생화", "Stellar Night"]
       ]
     },
     {

@@ -1028,6 +1028,13 @@ function openDetailPopup(key, id) {
     bodyText = item.link ? `<a href="${escapeAttr(item.link)}" target="_blank" rel="noopener">예매 페이지 바로가기 ↗</a>` : "";
   }
 
+  const setlistBtn = (key === "performances" && item.setlist && item.setlist.length)
+    ? `<button class="btn small" id="popup-setlist-toggle" style="margin-bottom:12px;">🎶 셋리스트 보기</button>
+       <div id="popup-setlist" style="display:none; font-size:13px; line-height:1.9; color:var(--ink); margin-bottom:14px;">
+         ${item.setlist.map(block => `<div style="margin-bottom:10px;">${block.map(song => escapeHtml(song)).join("<br>")}</div>`).join("")}
+       </div>`
+    : "";
+
   let statusHtml = "";
   if ((key === "dramas" || key === "shows") && item.status === "보는중") {
     statusHtml = `
@@ -1043,6 +1050,7 @@ function openDetailPopup(key, id) {
     <h3 style="margin:0 0 8px;">${escapeHtml(item.title)}</h3>
     ${metaHtml ? `<div class="hint" style="margin-bottom:10px;">${metaHtml}</div>` : ""}
     <div style="font-size:13px; line-height:1.6; color:var(--ink); margin-bottom:16px;">${bodyText}</div>
+    ${setlistBtn}
     ${statusHtml ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">${statusHtml}</div>` : ""}
     <div class="modal-actions" style="justify-content:space-between;">
       <button class="btn danger" id="popup-delete">삭제</button>
@@ -1054,6 +1062,15 @@ function openDetailPopup(key, id) {
   `);
   document.getElementById("popup-close").onclick = closeModal;
   document.getElementById("popup-edit").onclick = () => { closeModal(); openEditModal(key, id); };
+  const setlistToggleBtn = document.getElementById("popup-setlist-toggle");
+  if (setlistToggleBtn) {
+    setlistToggleBtn.addEventListener("click", () => {
+      const box = document.getElementById("popup-setlist");
+      const open = box.style.display !== "none";
+      box.style.display = open ? "none" : "block";
+      setlistToggleBtn.textContent = open ? "🎶 셋리스트 보기" : "🎶 셋리스트 접기";
+    });
+  }
   document.getElementById("popup-delete").onclick = () => {
     if (!confirm("이 항목을 삭제할까요?")) return;
     state[key] = state[key].filter(x => x.id !== id);
@@ -1165,6 +1182,7 @@ function openEditModal(key, id) {
       persistUpsert(key, item); closeModal(); render();
     };
   } else if (key === "performances") {
+    const setlistText = (item.setlist || []).map(block => block.join("\n")).join("\n\n");
     openModal(`
       <h3>${escapeHtml(item.title)} 편집</h3>
       <div class="hint">포스터는 예매처나 포털에서 이미지를 찾아 URL을 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
@@ -1176,6 +1194,10 @@ function openEditModal(key, id) {
       <div class="field"><label>좌석</label><input id="f-seat" value="${escapeAttr(item.seat || "")}"></div>
       <div class="field"><label>함께 (혼자면 "혼자")</label><input id="f-comp" value="${escapeAttr(item.companions || "")}"></div>
       <div class="field"><label>예매 링크</label><input id="f-link" value="${escapeAttr(item.link || "")}"></div>
+      <div class="field">
+        <label>셋리스트 (한 줄에 한 곡, 구간은 빈 줄로 구분)</label>
+        <textarea id="f-setlist" style="min-height:140px;">${escapeHtml(setlistText)}</textarea>
+      </div>
       <div class="modal-actions">
         <button class="btn" id="modal-cancel">취소</button>
         <button class="btn primary" id="modal-save">저장</button>
@@ -1192,6 +1214,10 @@ function openEditModal(key, id) {
       item.companions = document.getElementById("f-comp").value.trim();
       item.link = document.getElementById("f-link").value.trim();
       item.solo = /^혼자$/.test(item.companions.trim());
+      const rawSetlist = document.getElementById("f-setlist").value;
+      item.setlist = rawSetlist.trim()
+        ? rawSetlist.split(/\n\s*\n/).map(block => block.split("\n").map(s => s.trim()).filter(Boolean)).filter(block => block.length)
+        : [];
       persistUpsert(key, item); closeModal(); render();
     };
   }

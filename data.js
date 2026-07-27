@@ -179,7 +179,14 @@ const INITIAL_DATA = {
       id: "p8", date: "2026-07-16", title: "피아니스트 조성진 체임버 콘서트",
       venue: "부천아트센터 콘서트홀", price: 101500,
       seat: "3층 R구역 01열 05번", companions: "현진", solo: false,
-      link: "https://www.bac.or.kr/product/ko/performance/253440"
+      link: "https://www.bac.or.kr/product/ko/performance/253440",
+      setlist: [
+        ["브람스 (J. Brahms)"],
+        ["클라리넷, 첼로와 피아노를 위한 트리오 a단조, Op.114", "1. Allegro", "2. Adagio", "3. Andantino grazioso", "4. Allegro"],
+        ["바이올린, 호른과 피아노를 위한 트리오 Eb장조, Op.40", "1. Andante", "2. Scherzo. Allegro - Molto meno Allegro", "3. Adagio mesto", "4. Finale. Allegro con brio"],
+        ["인터미션(Intermission)"],
+        ["피아노 콰르텟 1번 g단조, Op.25", "1. Allegro", "2. Intermezzo. Allegro, ma non troppo - Trio. Animato", "3. Andante con moto", "4. Rondo all Zingarese. Presto"]
+      ]
     }
   ]
 };

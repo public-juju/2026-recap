@@ -1010,8 +1010,7 @@ function openDetailPopup(key, id) {
   if (key === "dramas" || key === "shows") {
     metaHtml = `
       ${item.broadcaster ? `${key === "dramas" ? "방송사" : "채널"}: ${escapeHtml(item.broadcaster)}<br>` : ""}
-      ${item.cast ? `${escapeHtml(item.cast)}<br>` : ""}
-      ${item.genre ? `장르: ${escapeHtml(item.genre)}` : ""}
+      ${item.cast ? `${escapeHtml(item.cast)}` : ""}
     `;
     bodyText = item.synopsis || "등록된 줄거리가 없어요. 편집에서 추가해보세요.";
   } else if (key === "movies") {

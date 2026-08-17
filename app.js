@@ -261,8 +261,13 @@ function posterBlock(item, emoji) {
 // across reloads regardless of render/sort order.
 function broadcasterColor(name) {
   if (!name) return null;
-  const all = distinctValues([...state.dramas, ...state.shows], "broadcaster");
-  const idx = Math.max(0, all.indexOf(name));
+  const all = Array.from(new Set(
+    [...state.dramas, ...state.shows]
+      .map(x => (x.broadcaster || "").trim())
+      .filter(Boolean)
+      .map(n => n.toLowerCase())
+  )).sort((a, b) => a.localeCompare(b, "ko"));
+  const idx = Math.max(0, all.indexOf(name.trim().toLowerCase()));
   const hue = (idx * 137.508) % 360;
   return { bg: `hsl(${hue}, 68%, 50%)`, text: "#fff" };
 }

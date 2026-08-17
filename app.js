@@ -320,6 +320,18 @@ function topCounts(list, splitter) {
   return sorted;
 }
 
+// Same title watched more than once still counts toward the total watched
+// count, but for "who/what shows up most" stats a rewatch shouldn't inflate
+// the tally — count each distinct title once there.
+function dedupeByTitle(list) {
+  const seen = new Set();
+  return list.filter(item => {
+    if (seen.has(item.title)) return false;
+    seen.add(item.title);
+    return true;
+  });
+}
+
 const EYEBROW_EMOJI = {
   "GENRE": "🎭", "CAST": "🌟", "CHANNEL": "📡", "DROPPED": "🛑",
   "VENUE": "🎬", "DISTANCE": "🧭", "COMPANION": "🤝", "TOP COMPANION": "💛",
@@ -381,9 +393,10 @@ function buildInsightCards(tab) {
     const done = list.filter(x => x.status === "완료").length;
     const watching = list.filter(x => x.status === "보는중").length;
     const dropped = list.filter(x => x.status === "중도하차").length;
-    const castCounts = topCounts(list.map(x => x.cast).filter(Boolean), /[,\/]/);
-    const genreCounts = topCounts(list.map(x => x.genre).filter(Boolean), /[,\/]/);
-    const bcCounts = topCounts(list.map(x => x.broadcaster).filter(Boolean), /[,\/]/);
+    const dedupList = dedupeByTitle(list);
+    const castCounts = topCounts(dedupList.map(x => x.cast).filter(Boolean), /[,\/]/);
+    const genreCounts = topCounts(dedupList.map(x => x.genre).filter(Boolean), /[,\/]/);
+    const bcCounts = topCounts(dedupList.map(x => x.broadcaster).filter(Boolean), /[,\/]/);
     const droppedTitles = list.filter(x => x.status === "중도하차").map(x => x.title);
 
     const cards = [
@@ -423,9 +436,7 @@ function buildInsightCards(tab) {
     const ott = list.filter(x => x.type === "OTT").length;
     const theater = list.filter(x => x.type === "영화관").length;
     const pct = list.length ? Math.round((theater / list.length) * 100) : 0;
-    const castCounts = topCounts(list.map(x => x.cast).filter(Boolean), /[,\/]/);
-
-    const cards = [
+    const castCounts = topCounts(dedupeByTitle(list).map(x => x.cast).filter(Boolean), /[,\/]/);    const cards = [
       statCard("2026 MOVIE WRAPPED", String(list.length), "편의 영화", `영화관 ${theater}편 · OTT ${ott}편을 봤어요.`),
       statCard("VENUE", `${pct}%`, "영화관 관람 비중", `영화관 ${theater}편 · OTT ${ott}편이었어요.`)
     ];

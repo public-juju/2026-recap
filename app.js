@@ -467,6 +467,7 @@ function buildInsightCards(tab) {
     const solo = list.filter(x => x.solo).length;
     const withOthers = list.length - solo;
     const totalKm = list.reduce((a, x) => a + (Number(x.distanceKm) || 0), 0);
+    const totalSpent = list.reduce((a, x) => a + travelCostTotal(x), 0);
     const flat = list.map(x => (x.companions || "").replace(/[가-힣]+:\s*/g, "")).join(",");
     const companionCounts = topCounts([flat], /,/);
 
@@ -475,11 +476,15 @@ function buildInsightCards(tab) {
       statCard("DISTANCE", totalKm.toLocaleString(), "총 이동 거리(km, 추정)", "KTX는 서울역, 국내선은 김포·해외는 인천 기준 편도 추정치예요."),
       statCard("COMPANION", `${solo} : ${withOthers}`, "혼자 : 함께", `혼자 ${solo}회 · 함께 ${withOthers}회 떠났어요.`)
     ];
+    if (totalSpent) {
+      cards.push(statCard("SPENDING", "₩" + totalSpent.toLocaleString(), "총 여행 경비", `${list.length}번의 여행에 총 ₩${totalSpent.toLocaleString()}을 썼어요.`));
+    }
     if (companionCounts.length) {
       cards.push(statCard("TOP COMPANION", companionCounts[0][0], "최다 동행", `${companionCounts[0][1]}회 함께했어요.`));
     }
 
     const tags = [`#여행_${list.length}회`, `#국내_${domestic}회`, `#해외_${intl}회`, `#이동거리_${totalKm.toLocaleString()}km`];
+    if (totalSpent) tags.push(`#여행경비_₩${totalSpent.toLocaleString()}`);
     const highlights = [];
     if (companionCounts.length) highlights.push({ label: "최다 동행", value: companionCounts[0][0], sub: `${companionCounts[0][1]}회 함께함` });
     cards.push({
@@ -659,11 +664,68 @@ function movieCard(item) {
   </div>`;
 }
 
+const KOREA_REGIONS = [
+  { code: "gw", name: "강원", keywords: ["강원", "강릉", "춘천", "속초", "양양", "묵호", "동해"] },
+  { code: "gg", name: "경기", keywords: ["경기", "수원", "성남", "양평", "용인", "고양"] },
+  { code: "gb", name: "경북", keywords: ["경북", "경주", "포항", "안동", "울릉"] },
+  { code: "ic", name: "인천", keywords: ["인천"] },
+  { code: "sl", name: "서울", keywords: ["서울"] },
+  { code: "cb", name: "충북", keywords: ["충북", "청주", "충주"] },
+  { code: "dg", name: "대구", keywords: ["대구"] },
+  { code: "cn", name: "충남", keywords: ["충남", "천안", "공주", "서산"] },
+  { code: "sj", name: "세종", keywords: ["세종"] },
+  { code: "gn", name: "경남", keywords: ["경남", "창원", "진주", "통영", "거제"] },
+  { code: "us", name: "울산", keywords: ["울산"] },
+  { code: "jb", name: "전북", keywords: ["전북", "전주", "군산", "익산"] },
+  { code: "dj", name: "대전", keywords: ["대전"] },
+  { code: "bs", name: "부산", keywords: ["부산"] },
+  { code: "gj", name: "광주", keywords: ["광주"] },
+  { code: "jn", name: "전남", keywords: ["전남", "순천", "여수", "목포", "담양"] },
+  { code: "jj", name: "제주", keywords: ["제주"] }
+];
+
+function matchRegion(destination) {
+  const d = destination || "";
+  for (const r of KOREA_REGIONS) {
+    if (r.keywords.some(k => d.includes(k))) return r.code;
+  }
+  return null;
+}
+
+function renderKoreaMap() {
+  const domesticTravels = state.travels.filter(t => !t.international);
+  const visitedCodes = new Set();
+  const unmatched = [];
+  domesticTravels.forEach(t => {
+    const code = matchRegion(t.destination);
+    if (code) visitedCodes.add(code);
+    else if (t.destination) unmatched.push(t.destination);
+  });
+  const intlTravels = state.travels.filter(t => t.international);
+
+  const tiles = KOREA_REGIONS.map(r =>
+    `<div class="region kr-${r.code} ${visitedCodes.has(r.code) ? "visited" : ""}">${escapeHtml(r.name)}</div>`
+  ).join("");
+
+  const intlHtml = intlTravels.length
+    ? `<div class="hint" style="text-align:center; margin-top:10px; margin-bottom:0;">✈️ 해외: ${intlTravels.map(t => escapeHtml(t.destination)).join(", ")}</div>`
+    : "";
+  const unmatchedHtml = unmatched.length
+    ? `<div class="hint" style="text-align:center; margin-top:4px; margin-bottom:0;">지도에서 못 찾은 목적지: ${unmatched.map(d => escapeHtml(d)).join(", ")}</div>`
+    : "";
+
+  return `
+    <div class="section-row"><h2>가본 지역</h2></div>
+    <div class="kr-map">${tiles}</div>
+    ${intlHtml}${unmatchedHtml}
+  `;
+}
+
 function renderTravelsTab() {
   const filtered = applyFilterSort("travels", state.travels);
   const addBtn = `<div class="section-row"><h2>여행 목록</h2><button class="btn primary" data-add="travels">+ 추가하기</button></div>`
     + renderFilterBar("travels", renderRegionFilter());
-  return addBtn + `<div class="grid" style="grid-template-columns:1fr;">${filtered.map(t => travelRow(t)).join("")}</div>`;
+  return renderKoreaMap() + addBtn + `<div class="grid" style="grid-template-columns:1fr;">${filtered.map(t => travelRow(t)).join("")}</div>`;
 }
 
 function fmtDateRange(a, b) {
@@ -671,8 +733,20 @@ function fmtDateRange(a, b) {
   return a === b ? f(a) : `${f(a)}~${f(b)}`;
 }
 
+function travelCostTotal(t) {
+  const c = t.costs || {};
+  return (Number(c.transport) || 0) + (Number(c.lodging) || 0) + (Number(c.food) || 0) + (Number(c.etc) || 0);
+}
+
 function travelRow(t) {
   const tagColor = t.international ? "#f97316" : "#3b82f6";
+  const total = travelCostTotal(t);
+  const c = t.costs || {};
+  const costParts = [];
+  if (c.transport) costParts.push(`교통 ₩${Number(c.transport).toLocaleString()}`);
+  if (c.lodging) costParts.push(`숙박 ₩${Number(c.lodging).toLocaleString()}`);
+  if (c.food) costParts.push(`식비 ₩${Number(c.food).toLocaleString()}`);
+  if (c.etc) costParts.push(`기타 ₩${Number(c.etc).toLocaleString()}`);
   return `
   <div class="list-stub" data-card-id="${t.id}">
     <div class="lead">
@@ -684,6 +758,7 @@ function travelRow(t) {
       <div class="meta">
         <b>이동수단</b> ${escapeHtml(t.transport)} · <b>함께</b> ${escapeHtml(t.companions || "혼자")}<br>
         <b>추정 이동거리</b> 편도 약 ${Number(t.distanceKm || 0).toLocaleString()}km
+        ${total ? `<br><b>경비</b> ₩${total.toLocaleString()}${costParts.length ? ` (${costParts.join(" · ")})` : ""}` : ""}
       </div>
     </div>
     <div class="right">
@@ -1215,6 +1290,7 @@ function openEditModal(key, id) {
       persistUpsert(key, item); closeModal(); render();
     };
   } else if (key === "travels") {
+    const c = item.costs || {};
     openModal(`
       <h3>${escapeHtml(item.destination)} 편집</h3>
       <div class="field"><label>목적지</label><input id="f-dest" value="${escapeAttr(item.destination)}"></div>
@@ -1224,6 +1300,11 @@ function openEditModal(key, id) {
       <div class="field"><label>함께 (혼자면 "혼자")</label><input id="f-comp" value="${escapeAttr(item.companions || "")}"></div>
       <div class="field"><label>추정 편도 거리(km)</label><input id="f-km" type="number" value="${item.distanceKm || 0}"></div>
       <div class="field"><label>해외 여행인가요?</label><select id="f-intl"><option value="false" ${!item.international?"selected":""}>국내</option><option value="true" ${item.international?"selected":""}>해외</option></select></div>
+      <div class="hint" style="margin-top:4px;">경비 (원 단위, 몰라도 되는 항목은 비워두세요)</div>
+      <div class="field"><label>교통비</label><input id="f-cost-transport" type="number" value="${c.transport || 0}"></div>
+      <div class="field"><label>숙박비</label><input id="f-cost-lodging" type="number" value="${c.lodging || 0}"></div>
+      <div class="field"><label>식비</label><input id="f-cost-food" type="number" value="${c.food || 0}"></div>
+      <div class="field"><label>기타</label><input id="f-cost-etc" type="number" value="${c.etc || 0}"></div>
       <div class="modal-actions">
         <button class="btn" id="modal-cancel">취소</button>
         <button class="btn primary" id="modal-save">저장</button>
@@ -1239,6 +1320,12 @@ function openEditModal(key, id) {
       item.distanceKm = Number(document.getElementById("f-km").value) || 0;
       item.international = document.getElementById("f-intl").value === "true";
       item.solo = /^혼자$/.test(item.companions.trim());
+      item.costs = {
+        transport: Number(document.getElementById("f-cost-transport").value) || 0,
+        lodging: Number(document.getElementById("f-cost-lodging").value) || 0,
+        food: Number(document.getElementById("f-cost-food").value) || 0,
+        etc: Number(document.getElementById("f-cost-etc").value) || 0
+      };
       persistUpsert(key, item); closeModal(); render();
     };
   } else if (key === "performances") {
@@ -1333,6 +1420,11 @@ function openAddModal(key) {
       <div class="field"><label>함께 (혼자면 "혼자")</label><input id="f-comp" value="혼자"></div>
       <div class="field"><label>추정 편도 거리(km)</label><input id="f-km" type="number" value="0"></div>
       <div class="field"><label>해외 여행인가요?</label><select id="f-intl"><option value="false">국내</option><option value="true">해외</option></select></div>
+      <div class="hint" style="margin-top:4px;">경비 (원 단위, 나중에 추가해도 돼요)</div>
+      <div class="field"><label>교통비</label><input id="f-cost-transport" type="number" value="0"></div>
+      <div class="field"><label>숙박비</label><input id="f-cost-lodging" type="number" value="0"></div>
+      <div class="field"><label>식비</label><input id="f-cost-food" type="number" value="0"></div>
+      <div class="field"><label>기타</label><input id="f-cost-etc" type="number" value="0"></div>
       <div class="modal-actions">
         <button class="btn" id="modal-cancel">취소</button>
         <button class="btn primary" id="modal-save">추가</button>
@@ -1350,7 +1442,13 @@ function openAddModal(key) {
         transport: document.getElementById("f-transport").value.trim(),
         companions, solo: /^혼자$/.test(companions),
         distanceKm: Number(document.getElementById("f-km").value) || 0,
-        international: document.getElementById("f-intl").value === "true"
+        international: document.getElementById("f-intl").value === "true",
+        costs: {
+          transport: Number(document.getElementById("f-cost-transport").value) || 0,
+          lodging: Number(document.getElementById("f-cost-lodging").value) || 0,
+          food: Number(document.getElementById("f-cost-food").value) || 0,
+          etc: Number(document.getElementById("f-cost-etc").value) || 0
+        }
       };
       state.travels.push(newItem);
       persistUpsert("travels", newItem); closeModal(); render();

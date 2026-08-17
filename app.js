@@ -867,6 +867,52 @@ modalOverlay.addEventListener("click", e => { if (e.target === modalOverlay) clo
 
 function openModal(html) { modalBody.innerHTML = html; modalOverlay.classList.add("open"); }
 
+// Some poster URLs don't load (hotlink-blocked, broken link, etc.) — this lets
+// the person pick a photo from their device instead. Resizes/compresses it
+// client-side before storing as a data URL, since it goes straight into
+// Supabase as text.
+function wireImageUpload() {
+  const fileInput = document.getElementById("f-poster-file");
+  const btn = document.getElementById("f-poster-upload-btn");
+  const urlInput = document.getElementById("f-poster");
+  if (!fileInput || !btn || !urlInput) return;
+  btn.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 900;
+        let { width, height } = img;
+        if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else if (height >= width && height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        urlInput.value = canvas.toDataURL("image/jpeg", 0.82);
+        btn.textContent = "✅ 사진 선택됨 (다시 선택하려면 클릭)";
+      };
+      img.onerror = () => alert("이미지를 불러오지 못했어요. 다른 사진으로 시도해주세요.");
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function posterFieldHtml(currentUrl) {
+  return `
+    <div class="field">
+      <label>포스터 이미지 URL</label>
+      <input id="f-poster" value="${escapeAttr(currentUrl || "")}">
+      <div class="hint" style="margin-top:6px; margin-bottom:0;">URL이 안 뜨는 이미지가 있다면, 사진을 직접 올려도 돼요.</div>
+      <button type="button" class="btn small" id="f-poster-upload-btn" style="margin-top:6px;">📁 내 사진에서 선택</button>
+      <input type="file" id="f-poster-file" accept="image/*" style="display:none;">
+    </div>
+  `;
+}
+
 // ====================== TMDB auto-fill ======================
 // mediaType: "tv" (dramas/shows) or "movie". Requires TMDB_API_KEY in config.js.
 async function tmdbLookup(mediaType, query) {
@@ -1110,7 +1156,7 @@ function openEditModal(key, id) {
       </div>
       <div class="hint">해외 영화·유명 드라마는 TMDB가, 한국 예능/일부 드라마는 위키백과가 더 잘 찾을 때가 많아요. 둘 다 안 되면 아래 링크로 직접 찾아 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
       <div class="field"><label>제목</label><input id="f-title" value="${escapeAttr(item.title)}"></div>
-      <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
+      ${posterFieldHtml(item.poster)}
       <div class="field"><label>방송사/채널</label><input id="f-bc" value="${escapeAttr(item.broadcaster || "")}"></div>
       <div class="field"><label>배우 (쉼표로 구분)</label><input id="f-cast" value="${escapeAttr(item.cast || "")}"></div>
       <div class="field"><label>줄거리</label><textarea id="f-syn">${escapeHtml(item.synopsis || "")}</textarea></div>
@@ -1121,6 +1167,7 @@ function openEditModal(key, id) {
     `);
     wireTmdbButton("tv", () => document.getElementById("f-title").value.trim() || item.title);
     wireWikiButton(() => document.getElementById("f-title").value.trim() || item.title);
+    wireImageUpload();
     document.getElementById("modal-cancel").onclick = closeModal;
     document.getElementById("modal-save").onclick = () => {
       item.title = document.getElementById("f-title").value.trim() || item.title;
@@ -1139,7 +1186,7 @@ function openEditModal(key, id) {
       </div>
       <div class="hint">해외 영화는 TMDB가 대체로 더 잘 찾아요. 안 되면 아래 링크로 직접 찾아 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
       <div class="field"><label>제목</label><input id="f-title" value="${escapeAttr(item.title)}"></div>
-      <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
+      ${posterFieldHtml(item.poster)}
       <div class="field"><label>관람 방식</label>
         <select id="f-type"><option ${item.type==="OTT"?"selected":""}>OTT</option><option ${item.type==="영화관"?"selected":""}>영화관</option></select>
       </div>
@@ -1152,6 +1199,7 @@ function openEditModal(key, id) {
     `);
     wireTmdbButton("movie", () => document.getElementById("f-title").value.trim() || item.title);
     wireWikiButton(() => document.getElementById("f-title").value.trim() || item.title);
+    wireImageUpload();
     document.getElementById("modal-cancel").onclick = closeModal;
     document.getElementById("modal-save").onclick = () => {
       item.title = document.getElementById("f-title").value.trim() || item.title;
@@ -1192,8 +1240,7 @@ function openEditModal(key, id) {
     const setlistText = (item.setlist || []).map(block => block.join("\n")).join("\n\n");
     openModal(`
       <h3>${escapeHtml(item.title)} 편집</h3>
-      <div class="hint">포스터는 예매처나 포털에서 이미지를 찾아 URL을 붙여넣어주세요. <a href="https://search.naver.com/search.naver?query=${encodeURIComponent(item.title)}" target="_blank" rel="noopener">네이버에서 검색 ↗</a></div>
-      <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
+      ${posterFieldHtml(item.poster)}
       <div class="field"><label>공연명</label><input id="f-title" value="${escapeAttr(item.title)}"></div>
       <div class="field"><label>날짜</label><input id="f-date" type="date" value="${item.date}"></div>
       <div class="field"><label>장소</label><input id="f-venue" value="${escapeAttr(item.venue)}"></div>
@@ -1210,6 +1257,7 @@ function openEditModal(key, id) {
         <button class="btn primary" id="modal-save">저장</button>
       </div>
     `);
+    wireImageUpload();
     document.getElementById("modal-cancel").onclick = closeModal;
     document.getElementById("modal-save").onclick = () => {
       item.poster = document.getElementById("f-poster").value.trim();
@@ -1305,7 +1353,7 @@ function openAddModal(key) {
   } else if (key === "performances") {
     openModal(`
       <h3>공연 추가</h3>
-      <div class="field"><label>포스터 이미지 URL (나중에 추가해도 돼요)</label><input id="f-poster" placeholder="https://"></div>
+      ${posterFieldHtml("")}
       <div class="field"><label>공연명</label><input id="f-title" placeholder="공연명을 입력하세요"></div>
       <div class="field"><label>날짜</label><input id="f-date" type="date"></div>
       <div class="field"><label>장소</label><input id="f-venue" placeholder="공연장"></div>
@@ -1318,6 +1366,7 @@ function openAddModal(key) {
         <button class="btn primary" id="modal-save">추가</button>
       </div>
     `);
+    wireImageUpload();
     document.getElementById("modal-cancel").onclick = closeModal;
     document.getElementById("modal-save").onclick = () => {
       const title = document.getElementById("f-title").value.trim();

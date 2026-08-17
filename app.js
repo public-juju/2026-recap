@@ -734,6 +734,8 @@ function fmtDateRange(a, b) {
 }
 
 function travelCostTotal(t) {
+  if (t.cost) return Number(t.cost) || 0;
+  // backward-compat: some entries may still have the old category breakdown
   const c = t.costs || {};
   return (Number(c.transport) || 0) + (Number(c.lodging) || 0) + (Number(c.food) || 0) + (Number(c.etc) || 0);
 }
@@ -741,12 +743,6 @@ function travelCostTotal(t) {
 function travelRow(t) {
   const tagColor = t.international ? "#f97316" : "#3b82f6";
   const total = travelCostTotal(t);
-  const c = t.costs || {};
-  const costParts = [];
-  if (c.transport) costParts.push(`교통 ₩${Number(c.transport).toLocaleString()}`);
-  if (c.lodging) costParts.push(`숙박 ₩${Number(c.lodging).toLocaleString()}`);
-  if (c.food) costParts.push(`식비 ₩${Number(c.food).toLocaleString()}`);
-  if (c.etc) costParts.push(`기타 ₩${Number(c.etc).toLocaleString()}`);
   return `
   <div class="list-stub" data-card-id="${t.id}">
     <div class="lead">
@@ -758,7 +754,7 @@ function travelRow(t) {
       <div class="meta">
         <b>이동수단</b> ${escapeHtml(t.transport)} · <b>함께</b> ${escapeHtml(t.companions || "혼자")}<br>
         <b>추정 이동거리</b> 편도 약 ${Number(t.distanceKm || 0).toLocaleString()}km
-        ${total ? `<br><b>경비</b> ₩${total.toLocaleString()}${costParts.length ? ` (${costParts.join(" · ")})` : ""}` : ""}
+        ${total ? `<br><b>경비</b> ₩${total.toLocaleString()}` : ""}
       </div>
     </div>
     <div class="right">
@@ -1290,7 +1286,6 @@ function openEditModal(key, id) {
       persistUpsert(key, item); closeModal(); render();
     };
   } else if (key === "travels") {
-    const c = item.costs || {};
     openModal(`
       <h3>${escapeHtml(item.destination)} 편집</h3>
       <div class="field"><label>목적지</label><input id="f-dest" value="${escapeAttr(item.destination)}"></div>
@@ -1300,11 +1295,7 @@ function openEditModal(key, id) {
       <div class="field"><label>함께 (혼자면 "혼자")</label><input id="f-comp" value="${escapeAttr(item.companions || "")}"></div>
       <div class="field"><label>추정 편도 거리(km)</label><input id="f-km" type="number" value="${item.distanceKm || 0}"></div>
       <div class="field"><label>해외 여행인가요?</label><select id="f-intl"><option value="false" ${!item.international?"selected":""}>국내</option><option value="true" ${item.international?"selected":""}>해외</option></select></div>
-      <div class="hint" style="margin-top:4px;">경비 (원 단위, 몰라도 되는 항목은 비워두세요)</div>
-      <div class="field"><label>교통비</label><input id="f-cost-transport" type="number" value="${c.transport || 0}"></div>
-      <div class="field"><label>숙박비</label><input id="f-cost-lodging" type="number" value="${c.lodging || 0}"></div>
-      <div class="field"><label>식비</label><input id="f-cost-food" type="number" value="${c.food || 0}"></div>
-      <div class="field"><label>기타</label><input id="f-cost-etc" type="number" value="${c.etc || 0}"></div>
+      <div class="field"><label>총 여행 경비(원)</label><input id="f-cost" type="number" value="${item.cost || 0}"></div>
       <div class="modal-actions">
         <button class="btn" id="modal-cancel">취소</button>
         <button class="btn primary" id="modal-save">저장</button>
@@ -1320,12 +1311,8 @@ function openEditModal(key, id) {
       item.distanceKm = Number(document.getElementById("f-km").value) || 0;
       item.international = document.getElementById("f-intl").value === "true";
       item.solo = /^혼자$/.test(item.companions.trim());
-      item.costs = {
-        transport: Number(document.getElementById("f-cost-transport").value) || 0,
-        lodging: Number(document.getElementById("f-cost-lodging").value) || 0,
-        food: Number(document.getElementById("f-cost-food").value) || 0,
-        etc: Number(document.getElementById("f-cost-etc").value) || 0
-      };
+      item.cost = Number(document.getElementById("f-cost").value) || 0;
+      delete item.costs;
       persistUpsert(key, item); closeModal(); render();
     };
   } else if (key === "performances") {
@@ -1420,11 +1407,7 @@ function openAddModal(key) {
       <div class="field"><label>함께 (혼자면 "혼자")</label><input id="f-comp" value="혼자"></div>
       <div class="field"><label>추정 편도 거리(km)</label><input id="f-km" type="number" value="0"></div>
       <div class="field"><label>해외 여행인가요?</label><select id="f-intl"><option value="false">국내</option><option value="true">해외</option></select></div>
-      <div class="hint" style="margin-top:4px;">경비 (원 단위, 나중에 추가해도 돼요)</div>
-      <div class="field"><label>교통비</label><input id="f-cost-transport" type="number" value="0"></div>
-      <div class="field"><label>숙박비</label><input id="f-cost-lodging" type="number" value="0"></div>
-      <div class="field"><label>식비</label><input id="f-cost-food" type="number" value="0"></div>
-      <div class="field"><label>기타</label><input id="f-cost-etc" type="number" value="0"></div>
+      <div class="field"><label>총 여행 경비(원)</label><input id="f-cost" type="number" value="0"></div>
       <div class="modal-actions">
         <button class="btn" id="modal-cancel">취소</button>
         <button class="btn primary" id="modal-save">추가</button>
@@ -1443,12 +1426,7 @@ function openAddModal(key) {
         companions, solo: /^혼자$/.test(companions),
         distanceKm: Number(document.getElementById("f-km").value) || 0,
         international: document.getElementById("f-intl").value === "true",
-        costs: {
-          transport: Number(document.getElementById("f-cost-transport").value) || 0,
-          lodging: Number(document.getElementById("f-cost-lodging").value) || 0,
-          food: Number(document.getElementById("f-cost-food").value) || 0,
-          etc: Number(document.getElementById("f-cost-etc").value) || 0
-        }
+        cost: Number(document.getElementById("f-cost").value) || 0
       };
       state.travels.push(newItem);
       persistUpsert("travels", newItem); closeModal(); render();

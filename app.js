@@ -342,7 +342,7 @@ const EYEBROW_EMOJI = {
   "GENRE": "🎭", "CAST": "🌟", "CHANNEL": "📡", "DROPPED": "🛑",
   "VENUE": "🎬", "DISTANCE": "🧭", "COMPANION": "🤝", "TOP COMPANION": "💛",
   "SPENDING": "💸", "MOST WATCHED": "🔁", "SCREEN TIME": "📺",
-  "OUT & ABOUT": "🚪", "MOST OF ALL": "🏆"
+  "OUT & ABOUT": "🚪", "MOST OF ALL": "🏆", "NIGHTS AWAY": "🌙"
 };
 function statCard(eyebrow, big, unit, desc) {
   const emoji = EYEBROW_EMOJI[eyebrow] || (eyebrow.includes("WRAPPED") ? "🎉" : "✨");
@@ -471,9 +471,12 @@ function buildInsightCards(tab) {
     const totalSpent = list.reduce((a, x) => a + travelCostTotal(x), 0);
     const flat = list.map(x => (x.companions || "").replace(/[가-힣]+:\s*/g, "")).join(",");
     const companionCounts = topCounts([flat], /,/);
+    const totalNights = list.reduce((a, x) => a + tripNights(x), 0);
+    const totalDays = list.reduce((a, x) => a + tripNights(x) + 1, 0);
 
     const cards = [
       statCard("2026 TRAVEL WRAPPED", String(list.length), "번의 여행", `국내 ${domestic}회 · 해외 ${intl}회를 다녀왔어요.`),
+      statCard("NIGHTS AWAY", String(totalNights), "박", `총 ${totalDays}일을 여행하며 보냈어요.`),
       statCard("DISTANCE", totalKm.toLocaleString(), "총 이동 거리(km, 추정)", "KTX는 서울역, 국내선은 김포·해외는 인천 기준 편도 추정치예요."),
       statCard("COMPANION", `${solo} : ${withOthers}`, "혼자 : 함께", `혼자 ${solo}회 · 함께 ${withOthers}회 떠났어요.`)
     ];
@@ -484,13 +487,13 @@ function buildInsightCards(tab) {
       cards.push(statCard("TOP COMPANION", companionCounts[0][0], "최다 동행", `${companionCounts[0][1]}회 함께했어요.`));
     }
 
-    const tags = [`#여행_${list.length}회`, `#국내_${domestic}회`, `#해외_${intl}회`, `#이동거리_${totalKm.toLocaleString()}km`];
+    const tags = [`#여행_${list.length}회`, `#${totalNights}박${totalDays}일`, `#국내_${domestic}회`, `#해외_${intl}회`, `#이동거리_${totalKm.toLocaleString()}km`];
     if (totalSpent) tags.push(`#여행경비_₩${totalSpent.toLocaleString()}`);
     const highlights = [];
     if (companionCounts.length) highlights.push({ label: "최다 동행", value: companionCounts[0][0], sub: `${companionCounts[0][1]}회 함께함` });
     cards.push({
       kind: "summary", title: "2026 여행 결산",
-      body: [`2026년, 여행을 총 ${list.length}번 다녀왔어요. 국내 ${domestic}회 · 해외 ${intl}회, 추정 이동거리는 편도 총 ${totalKm.toLocaleString()}km예요.`],
+      body: [`2026년, 여행을 총 ${list.length}번 다녀왔어요. 총 ${totalNights}박 ${totalDays}일, 국내 ${domestic}회 · 해외 ${intl}회, 추정 이동거리는 편도 총 ${totalKm.toLocaleString()}km예요.`],
       tags, highlights
     });
     return cards;
@@ -747,28 +750,12 @@ async function mountKoreaMap() {
     svgEl.classList.add("kr-svg-map");
     const svgNS = "http://www.w3.org/2000/svg";
 
-    // Ulleungdo renders as a tiny disjoint dot near the right edge of the map
-    // (part of the same <path> as 경북, so it can't be removed from the path
-    // data without breaking the rest of that province's shape). Simplest safe
-    // fix: paint over just that small area with the page background color.
-    const islandMask = document.createElementNS(svgNS, "rect");
-    islandMask.setAttribute("x", "500");
-    islandMask.setAttribute("y", "115");
-    islandMask.setAttribute("width", "30");
-    islandMask.setAttribute("height", "35");
-    islandMask.setAttribute("class", "kr-island-mask");
-    svgEl.appendChild(islandMask);
-
     const { visitedCodes, labelsByCode } = computeVisitedRegions();
     const visitedRegions = KOREA_REGIONS.filter(r => visitedCodes.has(r.code));
 
-    visitedRegions.forEach((r, i) => {
+    visitedRegions.forEach(r => {
       const path = svgEl.querySelector(`path[id="${r.svgId}"]`);
       if (!path) return;
-      // Muted pastel: golden-angle hue spacing keeps every visited spot a
-      // clearly different color, low saturation + high lightness keeps it soft.
-      const hue = (i * 137.508) % 360;
-      const color = `hsl(${hue}, 45%, 62%)`;
       path.classList.add("visited-province"); // subtle outline only — filling the
       // whole province would be misleading when only one city in it was visited
       // (e.g. 경주 is a small city, but 경북 the province is huge).
@@ -784,7 +771,6 @@ async function mountKoreaMap() {
         marker.setAttribute("cy", cy);
         marker.setAttribute("r", 10);
         marker.setAttribute("class", "kr-marker");
-        marker.style.fill = color;
         svgEl.appendChild(marker);
 
         const text = document.createElementNS(svgNS, "text");
@@ -811,6 +797,14 @@ function renderTravelsTab() {
 function fmtDateRange(a, b) {
   const f = d => d.slice(5).replace("-", "/");
   return a === b ? f(a) : `${f(a)}~${f(b)}`;
+}
+
+function tripNights(t) {
+  if (!t.startDate || !t.endDate) return 0;
+  const start = new Date(t.startDate);
+  const end = new Date(t.endDate);
+  const diff = Math.round((end - start) / (1000 * 60 * 60 * 24));
+  return diff > 0 ? diff : 0;
 }
 
 function travelCostTotal(t) {

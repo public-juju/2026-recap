@@ -476,7 +476,7 @@ function buildInsightCards(tab) {
 
     const cards = [
       statCard("2026 TRAVEL WRAPPED", String(list.length), "번의 여행", `국내 ${domestic}회 · 해외 ${intl}회를 다녀왔어요.`),
-      statCard("NIGHTS AWAY", String(totalNights), "박", `총 ${totalDays}일을 여행하며 보냈어요.`),
+      statCard("NIGHTS AWAY", String(totalNights), "박", `${list.length}번의 여행에서 잔 날을 모두 더하면 ${totalNights}박, 오간 날까지 합치면 총 ${totalDays}일이에요.`),
       statCard("DISTANCE", totalKm.toLocaleString(), "총 이동 거리(km, 추정)", "KTX는 서울역, 국내선은 김포·해외는 인천 기준 편도 추정치예요."),
       statCard("COMPANION", `${solo} : ${withOthers}`, "혼자 : 함께", `혼자 ${solo}회 · 함께 ${withOthers}회 떠났어요.`)
     ];
@@ -766,20 +766,13 @@ async function mountKoreaMap() {
         const cx = bbox.x + bbox.width / 2;
         const cy = bbox.y + bbox.height / 2;
 
-        const marker = document.createElementNS(svgNS, "circle");
-        marker.setAttribute("cx", cx);
-        marker.setAttribute("cy", cy);
-        marker.setAttribute("r", 10);
-        marker.setAttribute("class", "kr-marker");
-        svgEl.appendChild(marker);
-
         const text = document.createElementNS(svgNS, "text");
         text.setAttribute("x", cx);
-        text.setAttribute("y", cy + 22);
+        text.setAttribute("y", cy);
         text.setAttribute("class", "kr-label");
         text.textContent = labelText;
         svgEl.appendChild(text);
-      } catch (e) { /* getBBox can fail before layout; skip marker/label if so */ }
+      } catch (e) { /* getBBox can fail before layout; skip label if so */ }
     });
   } catch (e) {
     console.warn("Korea map load failed", e);

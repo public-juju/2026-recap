@@ -696,14 +696,20 @@ function matchRegion(destination) {
 function computeVisitedRegions() {
   const domesticTravels = state.travels.filter(t => !t.international);
   const visitedCodes = new Set();
+  const labelsByCode = {}; // code -> Set of destination texts as the person wrote them
   const unmatched = [];
   domesticTravels.forEach(t => {
     const code = matchRegion(t.destination);
-    if (code) visitedCodes.add(code);
-    else if (t.destination) unmatched.push(t.destination);
+    if (code) {
+      visitedCodes.add(code);
+      if (!labelsByCode[code]) labelsByCode[code] = new Set();
+      if (t.destination) labelsByCode[code].add(t.destination.replace(/\s*\([^)]*\)/g, "").trim());
+    } else if (t.destination) {
+      unmatched.push(t.destination);
+    }
   });
   const intlTravels = state.travels.filter(t => t.international);
-  return { visitedCodes, unmatched, intlTravels };
+  return { visitedCodes, labelsByCode, unmatched, intlTravels };
 }
 
 function renderKoreaMap() {
@@ -739,12 +745,30 @@ async function mountKoreaMap() {
     const svgEl = container.querySelector("svg");
     if (!svgEl) return;
     svgEl.classList.add("kr-svg-map");
-    const { visitedCodes } = computeVisitedRegions();
-    const visitedSvgIds = new Set(
-      KOREA_REGIONS.filter(r => visitedCodes.has(r.code)).map(r => r.svgId)
-    );
-    svgEl.querySelectorAll("path").forEach(path => {
-      path.classList.toggle("visited", visitedSvgIds.has(path.getAttribute("id")));
+
+    const { visitedCodes, labelsByCode } = computeVisitedRegions();
+    const visitedRegions = KOREA_REGIONS.filter(r => visitedCodes.has(r.code));
+    const svgNS = "http://www.w3.org/2000/svg";
+
+    visitedRegions.forEach((r, i) => {
+      const path = svgEl.querySelector(`path[id="${r.svgId}"]`);
+      if (!path) return;
+      // Muted pastel: golden-angle hue spacing keeps every visited region a
+      // clearly different color, low saturation + high lightness keeps it soft.
+      const hue = (i * 137.508) % 360;
+      path.classList.add("visited");
+      path.style.fill = `hsl(${hue}, 40%, 74%)`;
+
+      const labelText = Array.from(labelsByCode[r.code] || []).join(" · ") || r.name;
+      try {
+        const bbox = path.getBBox();
+        const text = document.createElementNS(svgNS, "text");
+        text.setAttribute("x", bbox.x + bbox.width / 2);
+        text.setAttribute("y", bbox.y + bbox.height / 2);
+        text.setAttribute("class", "kr-label");
+        text.textContent = labelText;
+        svgEl.appendChild(text);
+      } catch (e) { /* getBBox can fail before layout; skip label if so */ }
     });
   } catch (e) {
     console.warn("Korea map load failed", e);

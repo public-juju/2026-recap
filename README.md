@@ -124,3 +124,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOi...";
   - 공연 세트리스트 입력 UI
   - 드라마/예능 장르·배우 데이터를 채워 인사이트 고도화
   - 연말 결산용 요약 카드(공유 이미지) 생성 기능
+
+## 출처 표기
+- `korea-map.svg` (여행 탭의 대한민국 지도)는 [@svg-maps/south-korea](https://github.com/VictorCazanave/svg-maps)에서 가져왔어요 (제작: Victor Cazanave, CC BY 4.0 라이선스).
+

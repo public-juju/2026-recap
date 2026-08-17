@@ -615,8 +615,7 @@ function mediaCard(item, key, emoji, bcLabel, castLabel) {
     <div class="info">
       <div class="title">${escapeHtml(item.title)}</div>
       <div class="meta">
-        ${item.cast ? `${escapeHtml(item.cast)}<br>` : ""}
-        ${item.genre ? `장르: ${escapeHtml(item.genre)}` : ""}
+        ${item.cast ? `${escapeHtml(item.cast)}` : ""}
       </div>
     </div>
   </div>`;
@@ -1103,7 +1102,6 @@ function openEditModal(key, id) {
       <div class="field"><label>포스터 이미지 URL</label><input id="f-poster" value="${escapeAttr(item.poster || "")}"></div>
       <div class="field"><label>방송사/채널</label><input id="f-bc" value="${escapeAttr(item.broadcaster || "")}"></div>
       <div class="field"><label>배우 (쉼표로 구분)</label><input id="f-cast" value="${escapeAttr(item.cast || "")}"></div>
-      <div class="field"><label>장르 (쉼표로 구분)</label><input id="f-genre" value="${escapeAttr(item.genre || "")}"></div>
       <div class="field"><label>줄거리</label><textarea id="f-syn">${escapeHtml(item.synopsis || "")}</textarea></div>
       <div class="modal-actions">
         <button class="btn" id="modal-cancel">취소</button>
@@ -1118,7 +1116,6 @@ function openEditModal(key, id) {
       item.poster = document.getElementById("f-poster").value.trim();
       item.broadcaster = document.getElementById("f-bc").value.trim();
       item.cast = document.getElementById("f-cast").value.trim();
-      item.genre = document.getElementById("f-genre").value.trim();
       item.synopsis = document.getElementById("f-syn").value.trim();
       persistUpsert(key, item); closeModal(); render();
     };
@@ -1386,12 +1383,34 @@ async function migrateOrderFields() {
   if (changed) render();
 }
 
+// Genre was removed from the app (card face, detail popup, edit form), so
+// this clears out any genre values that were entered before that change.
+async function clearGenreField() {
+  const FLAG = "recap2026_genre_removed_v1";
+  try { if (localStorage.getItem(FLAG) === "done") return; } catch (e) {}
+
+  let changed = false;
+  ["dramas", "shows"].forEach(key => {
+    state[key].forEach(item => {
+      if (item.genre) {
+        delete item.genre;
+        changed = true;
+        persistUpsert(key, item);
+      }
+    });
+  });
+
+  try { localStorage.setItem(FLAG, "done"); } catch (e) {}
+  if (changed) render();
+}
+
 // ====================== Init ======================
 async function boot() {
   updateClock();
   setSyncStatus("연결 확인 중…");
   await initState();
   await migrateOrderFields();
+  await clearGenreField();
   render();
 }
 boot();

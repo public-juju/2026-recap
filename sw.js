@@ -1,11 +1,11 @@
-const CACHE_NAME = "recap2026-shell-v23";
+const CACHE_NAME = "recap2026-shell-v24";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=25",
-  "./app.js?v=25",
-  "./data.js?v=25",
-  "./config.js?v=25",
+  "./style.css?v=26",
+  "./app.js?v=26",
+  "./data.js?v=26",
+  "./config.js?v=26",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png"

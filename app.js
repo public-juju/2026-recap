@@ -753,22 +753,35 @@ async function mountKoreaMap() {
     visitedRegions.forEach((r, i) => {
       const path = svgEl.querySelector(`path[id="${r.svgId}"]`);
       if (!path) return;
-      // Muted pastel: golden-angle hue spacing keeps every visited region a
+      // Muted pastel: golden-angle hue spacing keeps every visited spot a
       // clearly different color, low saturation + high lightness keeps it soft.
       const hue = (i * 137.508) % 360;
-      path.classList.add("visited");
-      path.style.fill = `hsl(${hue}, 40%, 74%)`;
+      const color = `hsl(${hue}, 45%, 62%)`;
+      path.classList.add("visited-province"); // subtle outline only — filling the
+      // whole province would be misleading when only one city in it was visited
+      // (e.g. 경주 is a small city, but 경북 the province is huge).
 
       const labelText = Array.from(labelsByCode[r.code] || []).join(" · ") || r.name;
       try {
         const bbox = path.getBBox();
+        const cx = bbox.x + bbox.width / 2;
+        const cy = bbox.y + bbox.height / 2;
+
+        const marker = document.createElementNS(svgNS, "circle");
+        marker.setAttribute("cx", cx);
+        marker.setAttribute("cy", cy);
+        marker.setAttribute("r", 10);
+        marker.setAttribute("class", "kr-marker");
+        marker.style.fill = color;
+        svgEl.appendChild(marker);
+
         const text = document.createElementNS(svgNS, "text");
-        text.setAttribute("x", bbox.x + bbox.width / 2);
-        text.setAttribute("y", bbox.y + bbox.height / 2);
+        text.setAttribute("x", cx);
+        text.setAttribute("y", cy + 22);
         text.setAttribute("class", "kr-label");
         text.textContent = labelText;
         svgEl.appendChild(text);
-      } catch (e) { /* getBBox can fail before layout; skip label if so */ }
+      } catch (e) { /* getBBox can fail before layout; skip marker/label if so */ }
     });
   } catch (e) {
     console.warn("Korea map load failed", e);

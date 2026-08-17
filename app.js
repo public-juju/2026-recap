@@ -745,10 +745,22 @@ async function mountKoreaMap() {
     const svgEl = container.querySelector("svg");
     if (!svgEl) return;
     svgEl.classList.add("kr-svg-map");
+    const svgNS = "http://www.w3.org/2000/svg";
+
+    // Ulleungdo renders as a tiny disjoint dot near the right edge of the map
+    // (part of the same <path> as 경북, so it can't be removed from the path
+    // data without breaking the rest of that province's shape). Simplest safe
+    // fix: paint over just that small area with the page background color.
+    const islandMask = document.createElementNS(svgNS, "rect");
+    islandMask.setAttribute("x", "500");
+    islandMask.setAttribute("y", "115");
+    islandMask.setAttribute("width", "30");
+    islandMask.setAttribute("height", "35");
+    islandMask.setAttribute("class", "kr-island-mask");
+    svgEl.appendChild(islandMask);
 
     const { visitedCodes, labelsByCode } = computeVisitedRegions();
     const visitedRegions = KOREA_REGIONS.filter(r => visitedCodes.has(r.code));
-    const svgNS = "http://www.w3.org/2000/svg";
 
     visitedRegions.forEach((r, i) => {
       const path = svgEl.querySelector(`path[id="${r.svgId}"]`);

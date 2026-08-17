@@ -315,43 +315,25 @@ body {
 }
 .insight-dot.active { background: var(--accent-soft); width: 18px; border-radius: 999px; transition: width 0.2s ease; }
 
-/* ---------- Simplified Korea region map (schematic, not literal geography) ---------- */
-.kr-map {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-template-areas:
-    ".  .  .  gw .  .  ."
-    ".  gg .  .  gb .  ."
-    "ic sl cb .  .  dg ."
-    ".  cn sj .  .  gn us"
-    "jb dj .  .  .  .  bs"
-    "gj jn .  .  .  .  ."
-    ".  jj .  .  .  .  .";
-  gap: 5px;
-  max-width: 320px;
+/* ---------- Korea region map (real provincial shapes, via korea-map.svg) ---------- */
+.kr-svg-wrap {
+  max-width: 300px;
   margin: 0 auto 18px;
 }
-.kr-map .region {
-  aspect-ratio: 1;
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--rail);
-  color: var(--text-muted);
-  transition: background-color 0.2s ease, color 0.2s ease;
+.kr-svg-map {
+  width: 100%;
+  height: auto;
+  display: block;
 }
-.kr-map .region.visited {
-  background: var(--accent-soft);
-  color: #fff;
+.kr-svg-map path {
+  fill: var(--rail);
+  stroke: var(--bg);
+  stroke-width: 1.5;
+  transition: fill 0.2s ease;
 }
-.kr-gw { grid-area: gw; } .kr-gg { grid-area: gg; } .kr-gb { grid-area: gb; }
-.kr-ic { grid-area: ic; } .kr-sl { grid-area: sl; } .kr-cb { grid-area: cb; } .kr-dg { grid-area: dg; }
-.kr-cn { grid-area: cn; } .kr-sj { grid-area: sj; } .kr-gn { grid-area: gn; } .kr-us { grid-area: us; }
-.kr-jb { grid-area: jb; } .kr-dj { grid-area: dj; } .kr-bs { grid-area: bs; }
-.kr-gj { grid-area: gj; } .kr-jn { grid-area: jn; } .kr-jj { grid-area: jj; }
+.kr-svg-map path.visited {
+  fill: var(--accent-soft);
+}
 
 /* ---------- Section title / add button row ---------- */
 .section-row {

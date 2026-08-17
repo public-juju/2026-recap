@@ -703,9 +703,10 @@ function renderKoreaMap() {
   });
   const intlTravels = state.travels.filter(t => t.international);
 
-  const tiles = KOREA_REGIONS.map(r =>
-    `<div class="region kr-${r.code} ${visitedCodes.has(r.code) ? "visited" : ""}">${escapeHtml(r.name)}</div>`
-  ).join("");
+  const tiles = KOREA_REGIONS
+    .filter(r => visitedCodes.has(r.code))
+    .map(r => `<div class="region kr-${r.code} visited">${escapeHtml(r.name)}</div>`)
+    .join("");
 
   const intlHtml = intlTravels.length
     ? `<div class="hint" style="text-align:center; margin-top:10px; margin-bottom:0;">✈️ 해외: ${intlTravels.map(t => escapeHtml(t.destination)).join(", ")}</div>`

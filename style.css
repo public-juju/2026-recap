@@ -332,9 +332,16 @@ body {
   stroke-width: 1.5;
   transition: fill 0.2s ease;
 }
-/* Per-region fill color for visited provinces is set inline in JS (each one
-   gets its own muted pastel), this just adds a slightly stronger border. */
-.kr-svg-map path.visited {
+/* Per-region fill for visited provinces was replaced by a small marker dot
+   (see .kr-marker) — filling the whole province looked misleading when only
+   one city inside a large province was actually visited. This just gives
+   visited provinces a slightly stronger outline as a secondary cue. */
+.kr-svg-map path.visited-province {
+  stroke: var(--ink-dim);
+  stroke-width: 2;
+}
+.kr-svg-map .kr-marker {
+  stroke: #ffffff;
   stroke-width: 2;
 }
 .kr-svg-map .kr-label {

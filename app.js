@@ -1464,6 +1464,38 @@ async function clearGenreField() {
   if (changed) render();
 }
 
+// Same broadcaster ended up spelled two different ways (e.g. TMDB auto-fill
+// returning "Netflix" vs a manually-typed "넷플릭스") — this normalizes known
+// variants to one consistent label so the badge color/filter/insights treat
+// them as the same channel.
+const BROADCASTER_ALIASES = {
+  "넷플릭스": "Netflix",
+  "디즈니플러스": "Disney+",
+  "디즈니 플러스": "Disney+",
+  "티빙": "TVING",
+  "웨이브": "Wavve",
+  "쿠팡플레이": "Coupang Play"
+};
+async function normalizeBroadcasterNames() {
+  const FLAG = "recap2026_broadcaster_normalize_v1";
+  try { if (localStorage.getItem(FLAG) === "done") return; } catch (e) {}
+
+  let changed = false;
+  ["dramas", "shows"].forEach(key => {
+    state[key].forEach(item => {
+      const alias = BROADCASTER_ALIASES[(item.broadcaster || "").trim()];
+      if (alias && item.broadcaster !== alias) {
+        item.broadcaster = alias;
+        changed = true;
+        persistUpsert(key, item);
+      }
+    });
+  });
+
+  try { localStorage.setItem(FLAG, "done"); } catch (e) {}
+  if (changed) render();
+}
+
 // ====================== Init ======================
 async function boot() {
   updateClock();
@@ -1471,6 +1503,7 @@ async function boot() {
   await initState();
   await migrateOrderFields();
   await clearGenreField();
+  await normalizeBroadcasterNames();
   render();
 }
 boot();

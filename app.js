@@ -1474,16 +1474,21 @@ const BROADCASTER_ALIASES = {
   "디즈니 플러스": "Disney+",
   "티빙": "TVING",
   "웨이브": "Wavve",
-  "쿠팡플레이": "Coupang Play"
+  "쿠팡플레이": "Coupang Play",
+  "kbs2tv": "KBS2",
+  "kbs 2tv": "KBS2",
+  "kbs2 tv": "KBS2",
+  "kbs 2": "KBS2"
 };
 async function normalizeBroadcasterNames() {
-  const FLAG = "recap2026_broadcaster_normalize_v1";
+  const FLAG = "recap2026_broadcaster_normalize_v2";
   try { if (localStorage.getItem(FLAG) === "done") return; } catch (e) {}
 
   let changed = false;
   ["dramas", "shows"].forEach(key => {
     state[key].forEach(item => {
-      const alias = BROADCASTER_ALIASES[(item.broadcaster || "").trim()];
+      const raw = (item.broadcaster || "").trim();
+      const alias = BROADCASTER_ALIASES[raw] || BROADCASTER_ALIASES[raw.toLowerCase()];
       if (alias && item.broadcaster !== alias) {
         item.broadcaster = alias;
         changed = true;

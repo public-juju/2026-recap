@@ -332,6 +332,11 @@ body {
   stroke-width: 1.2;
   transition: fill 0.2s ease;
 }
+.kr-svg-map .kr-island-mask {
+  fill: var(--bg);
+  stroke: none;
+  pointer-events: none;
+}
 .kr-svg-map .kr-marker {
   stroke: #ffffff;
   stroke-width: 2;

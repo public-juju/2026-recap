@@ -317,13 +317,14 @@ body {
 
 /* ---------- Korea region map (real provincial shapes, via korea-map.svg) ---------- */
 .kr-svg-wrap {
-  max-width: 300px;
+  max-width: 320px;
   margin: 0 auto 18px;
 }
 .kr-svg-map {
   width: 100%;
   height: auto;
   display: block;
+  overflow: visible;
 }
 .kr-svg-map path {
   fill: var(--rail);
@@ -331,8 +332,23 @@ body {
   stroke-width: 1.5;
   transition: fill 0.2s ease;
 }
+/* Per-region fill color for visited provinces is set inline in JS (each one
+   gets its own muted pastel), this just adds a slightly stronger border. */
 .kr-svg-map path.visited {
-  fill: var(--accent-soft);
+  stroke-width: 2;
+}
+.kr-svg-map .kr-label {
+  font-family: "Pretendard", sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  fill: #26262c;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
 }
 
 /* ---------- Section title / add button row ---------- */

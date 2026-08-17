@@ -295,6 +295,7 @@ function render() {
   document.getElementById("insights").innerHTML = renderInsights(activeTab);
   document.getElementById("content").innerHTML = renderContent(activeTab);
   attachEvents();
+  if (activeTab === "travels") mountKoreaMap();
 }
 
 function renderTabs() {
@@ -665,23 +666,23 @@ function movieCard(item) {
 }
 
 const KOREA_REGIONS = [
-  { code: "gw", name: "강원", keywords: ["강원", "강릉", "춘천", "속초", "양양", "묵호", "동해"] },
-  { code: "gg", name: "경기", keywords: ["경기", "수원", "성남", "양평", "용인", "고양"] },
-  { code: "gb", name: "경북", keywords: ["경북", "경주", "포항", "안동", "울릉"] },
-  { code: "ic", name: "인천", keywords: ["인천"] },
-  { code: "sl", name: "서울", keywords: ["서울"] },
-  { code: "cb", name: "충북", keywords: ["충북", "청주", "충주"] },
-  { code: "dg", name: "대구", keywords: ["대구"] },
-  { code: "cn", name: "충남", keywords: ["충남", "천안", "공주", "서산"] },
-  { code: "sj", name: "세종", keywords: ["세종"] },
-  { code: "gn", name: "경남", keywords: ["경남", "창원", "진주", "통영", "거제"] },
-  { code: "us", name: "울산", keywords: ["울산"] },
-  { code: "jb", name: "전북", keywords: ["전북", "전주", "군산", "익산"] },
-  { code: "dj", name: "대전", keywords: ["대전"] },
-  { code: "bs", name: "부산", keywords: ["부산"] },
-  { code: "gj", name: "광주", keywords: ["광주"] },
-  { code: "jn", name: "전남", keywords: ["전남", "순천", "여수", "목포", "담양"] },
-  { code: "jj", name: "제주", keywords: ["제주"] }
+  { code: "gw", name: "강원", svgId: "gangwon", keywords: ["강원", "강릉", "춘천", "속초", "양양", "묵호", "동해"] },
+  { code: "gg", name: "경기", svgId: "gyeonggi", keywords: ["경기", "수원", "성남", "양평", "용인", "고양"] },
+  { code: "gb", name: "경북", svgId: "north-gyeongsang", keywords: ["경북", "경주", "포항", "안동", "울릉"] },
+  { code: "ic", name: "인천", svgId: "incheon", keywords: ["인천"] },
+  { code: "sl", name: "서울", svgId: "seoul", keywords: ["서울"] },
+  { code: "cb", name: "충북", svgId: "north-chungcheong", keywords: ["충북", "청주", "충주"] },
+  { code: "dg", name: "대구", svgId: "daegu", keywords: ["대구"] },
+  { code: "cn", name: "충남", svgId: "south-chungcheong", keywords: ["충남", "천안", "공주", "서산"] },
+  { code: "sj", name: "세종", svgId: "sejong", keywords: ["세종"] },
+  { code: "gn", name: "경남", svgId: "south-gyeongsang", keywords: ["경남", "창원", "진주", "통영", "거제"] },
+  { code: "us", name: "울산", svgId: "ulsan", keywords: ["울산"] },
+  { code: "jb", name: "전북", svgId: "north-jeolla", keywords: ["전북", "전주", "군산", "익산"] },
+  { code: "dj", name: "대전", svgId: "daejeon", keywords: ["대전"] },
+  { code: "bs", name: "부산", svgId: "busan", keywords: ["부산"] },
+  { code: "gj", name: "광주", svgId: "gwangju", keywords: ["광주"] },
+  { code: "jn", name: "전남", svgId: "south-jeolla", keywords: ["전남", "순천", "여수", "목포", "담양"] },
+  { code: "jj", name: "제주", svgId: "jeju", keywords: ["제주"] }
 ];
 
 function matchRegion(destination) {
@@ -692,7 +693,7 @@ function matchRegion(destination) {
   return null;
 }
 
-function renderKoreaMap() {
+function computeVisitedRegions() {
   const domesticTravels = state.travels.filter(t => !t.international);
   const visitedCodes = new Set();
   const unmatched = [];
@@ -702,11 +703,11 @@ function renderKoreaMap() {
     else if (t.destination) unmatched.push(t.destination);
   });
   const intlTravels = state.travels.filter(t => t.international);
+  return { visitedCodes, unmatched, intlTravels };
+}
 
-  const tiles = KOREA_REGIONS
-    .filter(r => visitedCodes.has(r.code))
-    .map(r => `<div class="region kr-${r.code} visited">${escapeHtml(r.name)}</div>`)
-    .join("");
+function renderKoreaMap() {
+  const { unmatched, intlTravels } = computeVisitedRegions();
 
   const intlHtml = intlTravels.length
     ? `<div class="hint" style="text-align:center; margin-top:10px; margin-bottom:0;">✈️ 해외: ${intlTravels.map(t => escapeHtml(t.destination)).join(", ")}</div>`
@@ -717,9 +718,38 @@ function renderKoreaMap() {
 
   return `
     <div class="section-row"><h2>가본 지역</h2></div>
-    <div class="kr-map">${tiles}</div>
+    <div class="kr-svg-wrap" id="kr-map-svg-container"><div class="empty-state">지도를 불러오는 중…</div></div>
     ${intlHtml}${unmatchedHtml}
   `;
+}
+
+// The map SVG (real provincial boundaries) is fetched once and cached, then
+// injected and colored to match visited provinces — done after the content
+// is actually in the DOM, since fetching is async.
+let koreaSvgTextCache = null;
+async function mountKoreaMap() {
+  const container = document.getElementById("kr-map-svg-container");
+  if (!container) return;
+  try {
+    if (!koreaSvgTextCache) {
+      const res = await fetch("korea-map.svg");
+      koreaSvgTextCache = await res.text();
+    }
+    container.innerHTML = koreaSvgTextCache;
+    const svgEl = container.querySelector("svg");
+    if (!svgEl) return;
+    svgEl.classList.add("kr-svg-map");
+    const { visitedCodes } = computeVisitedRegions();
+    const visitedSvgIds = new Set(
+      KOREA_REGIONS.filter(r => visitedCodes.has(r.code)).map(r => r.svgId)
+    );
+    svgEl.querySelectorAll("path").forEach(path => {
+      path.classList.toggle("visited", visitedSvgIds.has(path.getAttribute("id")));
+    });
+  } catch (e) {
+    console.warn("Korea map load failed", e);
+    container.innerHTML = `<div class="empty-state">지도를 불러오지 못했어요.</div>`;
+  }
 }
 
 function renderTravelsTab() {

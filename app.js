@@ -1,6 +1,6 @@
 // ====================== State ======================
 const STORAGE_KEY = "recap2026_v1";
-const CATEGORIES = ["dramas", "movies", "shows", "travels", "performances"];
+const CATEGORIES = ["dramas", "movies", "shows", "travels", "performances", "exhibitions"];
 const TABLE = "recap_items";
 
 const hasSupabaseConfig =
@@ -10,9 +10,9 @@ const hasSupabaseConfig =
 
 const sb = hasSupabaseConfig ? window.supabase.createClient(SUPABASE_URL.trim(), SUPABASE_ANON_KEY.trim()) : null;
 
-let state = { dramas: [], movies: [], shows: [], travels: [], performances: [] };
+let state = { dramas: [], movies: [], shows: [], travels: [], performances: [], exhibitions: [] };
 
-function emptyState() { return { dramas: [], movies: [], shows: [], travels: [], performances: [] }; }
+function emptyState() { return { dramas: [], movies: [], shows: [], travels: [], performances: [], exhibitions: [] }; }
 
 function loadLocalState() {
   try {
@@ -127,6 +127,7 @@ const TABS = [
   { key: "movies", label: "영화", emoji: "🎥" },
   { key: "shows", label: "예능&교양", emoji: "📺" },
   { key: "performances", label: "공연", emoji: "🫶🏻" },
+  { key: "exhibitions", label: "전시", emoji: "🖼️" },
   { key: "travels", label: "여행", emoji: "✈️" },
   { key: "insights", label: "통합 인사이트", emoji: "📊" }
 ];
@@ -144,7 +145,8 @@ const filterState = {
   shows: { sort: "asc", sortBy: "order" },
   movies: { sort: "asc", sortBy: "order" },
   travels: { sort: "asc", region: "" },
-  performances: { sort: "asc" }
+  performances: { sort: "asc" },
+  exhibitions: { sort: "asc" }
 };
 
 function sortValue(key, item) {
@@ -166,7 +168,7 @@ function sortValue(key, item) {
     return item.order || 0; // newly added items (non-original ids)
   }
   if (key === "travels") return item.startDate;
-  if (key === "performances") return item.date;
+  if (key === "performances" || key === "exhibitions") return item.date;
   return (item.title || "").toLowerCase();
 }
 
@@ -351,27 +353,29 @@ function statCard(eyebrow, big, unit, desc) {
 
 function buildInsightCards(tab) {
   if (tab === "insights") {
-    const dramas = state.dramas, shows = state.shows, movies = state.movies, travels = state.travels, performances = state.performances;
+    const dramas = state.dramas, shows = state.shows, movies = state.movies, travels = state.travels, performances = state.performances, exhibitions = state.exhibitions;
     const dramasDone = dramas.filter(x => x.status === "완료").length;
     const showsDone = shows.filter(x => x.status === "완료").length;
     const watchTotal = dramasDone + showsDone + movies.length;
-    const totalMoments = dramas.length + shows.length + movies.length + travels.length + performances.length;
+    const totalMoments = dramas.length + shows.length + movies.length + travels.length + performances.length + exhibitions.length;
     const perfTotal = performances.reduce((a, x) => a + (Number(x.price) || 0), 0);
+    const exhibitTotal = exhibitions.reduce((a, x) => a + (Number(x.price) || 0), 0);
+    const outingsSpend = perfTotal + exhibitTotal;
     const travelKm = travels.reduce((a, x) => a + (Number(x.distanceKm) || 0), 0);
-    const outings = travels.length + performances.length;
+    const outings = travels.length + performances.length + exhibitions.length;
 
     const counts = [
       { label: "드라마", n: dramas.length }, { label: "예능&교양", n: shows.length },
       { label: "영화", n: movies.length }, { label: "여행", n: travels.length },
-      { label: "공연", n: performances.length }
+      { label: "공연", n: performances.length }, { label: "전시", n: exhibitions.length }
     ].sort((a, b) => b.n - a.n);
 
     const cards = [
       statCard("2026 THE YEAR WRAPPED", String(totalMoments), "개의 순간을 기록했어요",
-        `드라마 ${dramas.length}편 · 영화 ${movies.length}편 · 예능 ${shows.length}편 · 여행 ${travels.length}회 · 공연 ${performances.length}회예요.`),
+        `드라마 ${dramas.length}편 · 영화 ${movies.length}편 · 예능 ${shows.length}편 · 여행 ${travels.length}회 · 공연 ${performances.length}회 · 전시 ${exhibitions.length}회예요.`),
       statCard("SCREEN TIME", String(watchTotal), "편의 영상 콘텐츠", `드라마 완료 ${dramasDone}편 · 예능 완료 ${showsDone}편 · 영화 ${movies.length}편을 봤어요.`),
-      statCard("OUT & ABOUT", String(outings), "번은 집 밖으로", `여행 ${travels.length}회, 공연 ${performances.length}회로 총 ${outings}번 나갔어요.`),
-      statCard("SPENDING", "₩" + perfTotal.toLocaleString(), "공연에 쓴 돈", `공연 ${performances.length}회에 총 ₩${perfTotal.toLocaleString()}을 썼어요.`),
+      statCard("OUT & ABOUT", String(outings), "번은 집 밖으로", `여행 ${travels.length}회, 공연 ${performances.length}회, 전시 ${exhibitions.length}회로 총 ${outings}번 나갔어요.`),
+      statCard("SPENDING", "₩" + outingsSpend.toLocaleString(), "공연·전시에 쓴 돈", `공연 ₩${perfTotal.toLocaleString()} · 전시 ₩${exhibitTotal.toLocaleString()}을 썼어요.`),
       statCard("DISTANCE", travelKm.toLocaleString() + "km", "여행으로 이동한 거리(추정)", `편도 기준 추정치예요.`)
     ];
     if (counts.length && counts[0].n > 0) {
@@ -379,13 +383,13 @@ function buildInsightCards(tab) {
     }
 
     const tags = [`#총_${totalMoments}개`, `#영상_${watchTotal}편`, `#외출_${outings}회`];
-    if (perfTotal) tags.push(`#공연지출_₩${perfTotal.toLocaleString()}`);
+    if (outingsSpend) tags.push(`#공연전시지출_₩${outingsSpend.toLocaleString()}`);
     if (travelKm) tags.push(`#이동거리_${travelKm.toLocaleString()}km`);
     cards.push({
       kind: "summary", title: "2026 종합 결산",
       body: [
-        `2026년 한 해, 드라마·영화·예능·여행·공연을 합쳐 총 ${totalMoments}개의 기록을 남겼어요.`,
-        `영상 콘텐츠 ${watchTotal}편을 보고, ${outings}번은 여행이나 공연으로 집 밖을 나섰어요.`
+        `2026년 한 해, 드라마·영화·예능·여행·공연·전시를 합쳐 총 ${totalMoments}개의 기록을 남겼어요.`,
+        `영상 콘텐츠 ${watchTotal}편을 보고, ${outings}번은 여행·공연·전시로 집 밖을 나섰어요.`
       ],
       tags, highlights: counts[0] && counts[0].n > 0 ? [{ label: "가장 많이 기록한 카테고리", value: counts[0].label, sub: `${counts[0].n}개 기록` }] : []
     });
@@ -528,6 +532,35 @@ function buildInsightCards(tab) {
     return cards;
   }
 
+  if (tab === "exhibitions") {
+    const list = state.exhibitions;
+    const total = list.reduce((a, x) => a + (Number(x.price) || 0), 0);
+    const solo = list.filter(x => x.solo).length;
+    const withOthers = list.length - solo;
+    const titleCounts = {};
+    list.forEach(x => { titleCounts[x.title] = (titleCounts[x.title] || 0) + 1; });
+    const topTitle = Object.entries(titleCounts).sort((a, b) => b[1] - a[1])[0];
+    const avg = list.length ? Math.round(total / list.length) : 0;
+
+    const cards = [
+      statCard("2026 EXHIBIT WRAPPED", String(list.length), "번의 전시", `혼자 ${solo}회 · 함께 ${withOthers}회 봤어요.`),
+      statCard("SPENDING", "₩" + total.toLocaleString(), "총 지출", `평균 ₩${avg.toLocaleString()}/회를 썼어요.`)
+    ];
+    if (topTitle) {
+      cards.push(statCard("MOST WATCHED", topTitle[0], "가장 많이 본 전시", `${topTitle[1]}회 관람했어요.`));
+    }
+
+    const tags = [`#전시_${list.length}회`, `#총지출_₩${total.toLocaleString()}`, `#혼자_${solo}회`, `#함께_${withOthers}회`];
+    const highlights = [];
+    if (topTitle) highlights.push({ label: "가장 많이 본 전시", value: topTitle[0], sub: `${topTitle[1]}회 관람` });
+    cards.push({
+      kind: "summary", title: "2026 전시 결산",
+      body: [`2026년, 전시를 총 ${list.length}번 봤어요. 총 지출은 ₩${total.toLocaleString()}, 평균 ₩${avg.toLocaleString()}/회였어요.`],
+      tags, highlights
+    });
+    return cards;
+  }
+
   return [];
 }
 
@@ -598,9 +631,10 @@ function renderContent(tab) {
   if (tab === "movies") return renderMoviesTab();
   if (tab === "travels") return renderTravelsTab();
   if (tab === "performances") return renderPerformancesTab();
+  if (tab === "exhibitions") return renderExhibitionsTab();
   if (tab === "insights") {
     return `<div class="section-row"><h2>2026년 전체를 한눈에</h2></div>
-      <div class="empty-state">아래 카드를 넘겨보면서 드라마·영화·예능·공연·여행을 한 번에 확인해보세요.</div>`;
+      <div class="empty-state">아래 카드를 넘겨보면서 드라마·영화·예능·공연·전시·여행을 한 번에 확인해보세요.</div>`;
   }
   return "";
 }
@@ -845,6 +879,31 @@ function perfCard(p) {
   <div class="stub" data-card-id="${p.id}">
     <span class="badge" style="background:${tagColor}">${p.solo ? "혼자" : "함께"}</span>
     <div class="poster" ${bg} data-action="detail" data-key="performances" data-id="${p.id}">${posterBlock(p, "🎫")}</div>
+    <div class="tear"></div>
+    <div class="info">
+      <div class="title">${escapeHtml(p.title)}</div>
+      <div class="meta">
+        ${p.date.slice(5).replace("-", "/")} · ${escapeHtml(p.venue)}<br>
+        ₩${Number(p.price || 0).toLocaleString()}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderExhibitionsTab() {
+  const filtered = applyFilterSort("exhibitions", state.exhibitions);
+  const addBtn = `<div class="section-row"><h2>전시 목록</h2><button class="btn primary" data-add="exhibitions">+ 추가하기</button></div>`
+    + renderFilterBar("exhibitions");
+  return addBtn + `<div class="grid">${filtered.map(exhibitionCard).join("")}</div>`;
+}
+
+function exhibitionCard(p) {
+  const bg = p.poster ? "" : `style="background:${posterGradient(p.title)}"`;
+  const tagColor = p.solo ? "#f59e0b" : "#0ea5e9";
+  return `
+  <div class="stub" data-card-id="${p.id}">
+    <span class="badge" style="background:${tagColor}">${p.solo ? "혼자" : "함께"}</span>
+    <div class="poster" ${bg} data-action="detail" data-key="exhibitions" data-id="${p.id}">${posterBlock(p, "🖼️")}</div>
     <div class="tear"></div>
     <div class="info">
       <div class="title">${escapeHtml(p.title)}</div>
@@ -1198,7 +1257,7 @@ function openDetailPopup(key, id) {
   const item = state[key].find(x => x.id === id);
   if (!item) return;
 
-  const emoji = key === "movies" ? "🎬" : key === "performances" ? "🎫" : "📺";
+  const emoji = key === "movies" ? "🎬" : key === "performances" ? "🎫" : key === "exhibitions" ? "🖼️" : "📺";
   const posterHtml = item.poster
     ? `<img src="${escapeAttr(item.poster)}" alt="" style="width:100%;border-radius:12px;margin-bottom:14px;display:block;" onerror="this.style.display='none'">`
     : `<div style="width:100%;aspect-ratio:2/3;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;text-align:center;padding:16px;background:${posterGradient(item.title)}">${emoji}<br>${escapeHtml(item.title)}</div>`;
@@ -1224,6 +1283,15 @@ function openDetailPopup(key, id) {
       가격: ₩${Number(item.price || 0).toLocaleString()}
     `;
     bodyText = item.link ? `<a href="${escapeAttr(item.link)}" target="_blank" rel="noopener">예매 페이지 바로가기 ↗</a>` : "";
+  } else if (key === "exhibitions") {
+    metaHtml = `
+      날짜: ${escapeHtml(item.date)}<br>
+      장소: ${escapeHtml(item.venue)}<br>
+      ${item.note ? `메모: ${escapeHtml(item.note)}<br>` : ""}
+      함께: ${escapeHtml(item.companions || "혼자")}<br>
+      가격: ₩${Number(item.price || 0).toLocaleString()}
+    `;
+    bodyText = item.link ? `<a href="${escapeAttr(item.link)}" target="_blank" rel="noopener">전시 페이지 바로가기 ↗</a>` : "";
   }
 
   const setlistBtn = (key === "performances" && item.setlist && item.setlist.length)
@@ -1421,6 +1489,36 @@ function openEditModal(key, id) {
         : [];
       persistUpsert(key, item); closeModal(); render();
     };
+  } else if (key === "exhibitions") {
+    openModal(`
+      <h3>${escapeHtml(item.title)} 편집</h3>
+      ${posterFieldHtml(item.poster)}
+      <div class="field"><label>전시명</label><input id="f-title" value="${escapeAttr(item.title)}"></div>
+      <div class="field"><label>날짜</label><input id="f-date" type="date" value="${item.date}"></div>
+      <div class="field"><label>장소</label><input id="f-venue" value="${escapeAttr(item.venue)}"></div>
+      <div class="field"><label>가격(원)</label><input id="f-price" type="number" value="${item.price}"></div>
+      <div class="field"><label>메모 (작가, 작품 등)</label><input id="f-note" value="${escapeAttr(item.note || "")}"></div>
+      <div class="field"><label>함께 (혼자면 "혼자")</label><input id="f-comp" value="${escapeAttr(item.companions || "")}"></div>
+      <div class="field"><label>전시 페이지 링크</label><input id="f-link" value="${escapeAttr(item.link || "")}"></div>
+      <div class="modal-actions">
+        <button class="btn" id="modal-cancel">취소</button>
+        <button class="btn primary" id="modal-save">저장</button>
+      </div>
+    `);
+    wireImageUpload();
+    document.getElementById("modal-cancel").onclick = closeModal;
+    document.getElementById("modal-save").onclick = () => {
+      item.poster = document.getElementById("f-poster").value.trim();
+      item.title = document.getElementById("f-title").value.trim();
+      item.date = document.getElementById("f-date").value;
+      item.venue = document.getElementById("f-venue").value.trim();
+      item.price = Number(document.getElementById("f-price").value) || 0;
+      item.note = document.getElementById("f-note").value.trim();
+      item.companions = document.getElementById("f-comp").value.trim();
+      item.link = document.getElementById("f-link").value.trim();
+      item.solo = /^혼자$/.test(item.companions.trim());
+      persistUpsert(key, item); closeModal(); render();
+    };
   }
 }
 
@@ -1532,6 +1630,41 @@ function openAddModal(key) {
       };
       state.performances.push(newItem);
       persistUpsert("performances", newItem); closeModal(); render();
+    };
+  } else if (key === "exhibitions") {
+    openModal(`
+      <h3>전시 추가</h3>
+      ${posterFieldHtml("")}
+      <div class="field"><label>전시명</label><input id="f-title" placeholder="전시명을 입력하세요"></div>
+      <div class="field"><label>날짜</label><input id="f-date" type="date"></div>
+      <div class="field"><label>장소</label><input id="f-venue" placeholder="전시장"></div>
+      <div class="field"><label>가격(원)</label><input id="f-price" type="number" value="0"></div>
+      <div class="field"><label>메모 (작가, 작품 등)</label><input id="f-note" placeholder="선택 사항"></div>
+      <div class="field"><label>함께 (혼자면 "혼자")</label><input id="f-comp" value="혼자"></div>
+      <div class="field"><label>전시 페이지 링크</label><input id="f-link" placeholder="https://"></div>
+      <div class="modal-actions">
+        <button class="btn" id="modal-cancel">취소</button>
+        <button class="btn primary" id="modal-save">추가</button>
+      </div>
+    `);
+    wireImageUpload();
+    document.getElementById("modal-cancel").onclick = closeModal;
+    document.getElementById("modal-save").onclick = () => {
+      const title = document.getElementById("f-title").value.trim();
+      const date = document.getElementById("f-date").value;
+      if (!title || !date) return;
+      const companions = document.getElementById("f-comp").value.trim() || "혼자";
+      const newItem = {
+        id: uid("ex"), title, date,
+        poster: document.getElementById("f-poster").value.trim(),
+        venue: document.getElementById("f-venue").value.trim(),
+        price: Number(document.getElementById("f-price").value) || 0,
+        note: document.getElementById("f-note").value.trim(),
+        companions, solo: /^혼자$/.test(companions),
+        link: document.getElementById("f-link").value.trim()
+      };
+      state.exhibitions.push(newItem);
+      persistUpsert("exhibitions", newItem); closeModal(); render();
     };
   }
 }

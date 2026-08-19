@@ -416,10 +416,10 @@ function buildInsightCards(tab) {
     if (genreCounts.length) {
       cards.push(statCard("GENRE", genreCounts[0][0], "가장 즐겨 본 장르", `${list.length}편 중 ${genreCounts[0][1]}편이 «${genreCounts[0][0]}»였어요.`));
     }
-    if (castCounts.length) {
+    if (castCounts.length && castCounts[0][1] > 1) {
       cards.push(statCard("CAST", castCounts[0][0], "최다 등장 배우/출연진", `«${castCounts[0][0]}»이(가) 나온 작품을 ${castCounts[0][1]}편 봤어요.`));
     }
-    if (bcCounts.length) {
+    if (bcCounts.length && bcCounts[0][1] > 1) {
       cards.push(statCard("CHANNEL", bcCounts[0][0], "최다 방송사/채널", `«${bcCounts[0][0]}»에서 ${bcCounts[0][1]}편을 봤어요.`));
     }
     if (dropped) {
@@ -429,10 +429,10 @@ function buildInsightCards(tab) {
     const tags = [`#총_${list.length}편`, `#완료_${done}편`];
     if (dropped) tags.push(`#중도하차_${dropped}편`);
     if (genreCounts.length) tags.push(`#${genreCounts[0][0]}`);
-    if (bcCounts.length) tags.push(`#${bcCounts[0][0]}`);
+    if (bcCounts.length && bcCounts[0][1] > 1) tags.push(`#${bcCounts[0][0]}`);
     const highlights = [];
-    if (castCounts.length) highlights.push({ label: "최다 등장 배우/출연진", value: castCounts[0][0], sub: `${castCounts[0][1]}편에 등장` });
-    if (bcCounts.length) highlights.push({ label: "최다 방송사/채널", value: bcCounts[0][0], sub: `${bcCounts[0][1]}편 시청` });
+    if (castCounts.length && castCounts[0][1] > 1) highlights.push({ label: "최다 등장 배우/출연진", value: castCounts[0][0], sub: `${castCounts[0][1]}편에 등장` });
+    if (bcCounts.length && bcCounts[0][1] > 1) highlights.push({ label: "최다 방송사/채널", value: bcCounts[0][0], sub: `${bcCounts[0][1]}편 시청` });
     cards.push({
       kind: "summary", title: `2026 ${label} 결산`,
       body: [`2026년, «${label}» ${list.length}편을 기록했어요. 완료 ${done}편${watching ? ` · 보는 중 ${watching}편` : ""}${dropped ? ` · 중도하차 ${dropped}편` : ""}이에요.`],
@@ -446,17 +446,18 @@ function buildInsightCards(tab) {
     const ott = list.filter(x => x.type === "OTT").length;
     const theater = list.filter(x => x.type === "영화관").length;
     const pct = list.length ? Math.round((theater / list.length) * 100) : 0;
-    const castCounts = topCounts(dedupeByTitle(list).map(x => x.cast).filter(Boolean), /[,\/]/);    const cards = [
+    const castCounts = topCounts(dedupeByTitle(list).map(x => x.cast).filter(Boolean), /[,\/]/);
+    const cards = [
       statCard("2026 MOVIE WRAPPED", String(list.length), "편의 영화", `영화관 ${theater}편 · OTT ${ott}편을 봤어요.`),
       statCard("VENUE", `${pct}%`, "영화관 관람 비중", `영화관 ${theater}편 · OTT ${ott}편이었어요.`)
     ];
-    if (castCounts.length) {
+    if (castCounts.length && castCounts[0][1] > 1) {
       cards.push(statCard("CAST", castCounts[0][0], "최다 등장 배우", `«${castCounts[0][0]}»이(가) 나온 영화를 ${castCounts[0][1]}편 봤어요.`));
     }
 
     const tags = [`#총_${list.length}편`, `#영화관_${theater}편`, `#OTT_${ott}편`];
     const highlights = [];
-    if (castCounts.length) highlights.push({ label: "최다 등장 배우", value: castCounts[0][0], sub: `${castCounts[0][1]}편에 등장` });
+    if (castCounts.length && castCounts[0][1] > 1) highlights.push({ label: "최다 등장 배우", value: castCounts[0][0], sub: `${castCounts[0][1]}편에 등장` });
     cards.push({
       kind: "summary", title: "2026 영화 결산",
       body: [`2026년, 영화 ${list.length}편을 봤어요. 영화관 ${theater}편 · OTT ${ott}편으로, 영화관 관람 비중이 ${pct}%였어요.`],
@@ -487,14 +488,14 @@ function buildInsightCards(tab) {
     if (totalSpent) {
       cards.push(statCard("SPENDING", "₩" + totalSpent.toLocaleString(), "총 여행 경비", `${list.length}번의 여행에 총 ₩${totalSpent.toLocaleString()}을 썼어요.`));
     }
-    if (companionCounts.length) {
+    if (companionCounts.length && companionCounts[0][1] > 1) {
       cards.push(statCard("TOP COMPANION", companionCounts[0][0], "최다 동행", `${companionCounts[0][1]}회 함께했어요.`));
     }
 
     const tags = [`#여행_${list.length}회`, `#${totalNights}박${totalDays}일`, `#국내_${domestic}회`, `#해외_${intl}회`, `#이동거리_${totalKm.toLocaleString()}km`];
     if (totalSpent) tags.push(`#여행경비_₩${totalSpent.toLocaleString()}`);
     const highlights = [];
-    if (companionCounts.length) highlights.push({ label: "최다 동행", value: companionCounts[0][0], sub: `${companionCounts[0][1]}회 함께함` });
+    if (companionCounts.length && companionCounts[0][1] > 1) highlights.push({ label: "최다 동행", value: companionCounts[0][0], sub: `${companionCounts[0][1]}회 함께함` });
     cards.push({
       kind: "summary", title: "2026 여행 결산",
       body: [`2026년, 여행을 총 ${list.length}번 다녀왔어요. 총 ${totalNights}박 ${totalDays}일, 국내 ${domestic}회 · 해외 ${intl}회, 추정 이동거리는 편도 총 ${totalKm.toLocaleString()}km예요.`],
@@ -517,13 +518,13 @@ function buildInsightCards(tab) {
       statCard("2026 SHOW WRAPPED", String(list.length), "번의 공연", `혼자 ${solo}회 · 함께 ${withOthers}회 봤어요.`),
       statCard("SPENDING", "₩" + total.toLocaleString(), "총 지출", `평균 ₩${avg.toLocaleString()}/회를 썼어요.`)
     ];
-    if (topTitle) {
+    if (topTitle && topTitle[1] > 1) {
       cards.push(statCard("MOST WATCHED", topTitle[0], "가장 많이 본 공연", `${topTitle[1]}회 관람했어요.`));
     }
 
     const tags = [`#공연_${list.length}회`, `#총지출_₩${total.toLocaleString()}`, `#혼자_${solo}회`, `#함께_${withOthers}회`];
     const highlights = [];
-    if (topTitle) highlights.push({ label: "가장 많이 본 공연", value: topTitle[0], sub: `${topTitle[1]}회 관람` });
+    if (topTitle && topTitle[1] > 1) highlights.push({ label: "가장 많이 본 공연", value: topTitle[0], sub: `${topTitle[1]}회 관람` });
     cards.push({
       kind: "summary", title: "2026 공연 결산",
       body: [`2026년, 공연을 총 ${list.length}번 봤어요. 총 지출은 ₩${total.toLocaleString()}, 평균 ₩${avg.toLocaleString()}/회였어요.`],
@@ -546,13 +547,13 @@ function buildInsightCards(tab) {
       statCard("2026 EXHIBIT WRAPPED", String(list.length), "번의 전시", `혼자 ${solo}회 · 함께 ${withOthers}회 봤어요.`),
       statCard("SPENDING", "₩" + total.toLocaleString(), "총 지출", `평균 ₩${avg.toLocaleString()}/회를 썼어요.`)
     ];
-    if (topTitle) {
+    if (topTitle && topTitle[1] > 1) {
       cards.push(statCard("MOST WATCHED", topTitle[0], "가장 많이 본 전시", `${topTitle[1]}회 관람했어요.`));
     }
 
     const tags = [`#전시_${list.length}회`, `#총지출_₩${total.toLocaleString()}`, `#혼자_${solo}회`, `#함께_${withOthers}회`];
     const highlights = [];
-    if (topTitle) highlights.push({ label: "가장 많이 본 전시", value: topTitle[0], sub: `${topTitle[1]}회 관람` });
+    if (topTitle && topTitle[1] > 1) highlights.push({ label: "가장 많이 본 전시", value: topTitle[0], sub: `${topTitle[1]}회 관람` });
     cards.push({
       kind: "summary", title: "2026 전시 결산",
       body: [`2026년, 전시를 총 ${list.length}번 봤어요. 총 지출은 ₩${total.toLocaleString()}, 평균 ₩${avg.toLocaleString()}/회였어요.`],

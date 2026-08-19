@@ -298,6 +298,12 @@ function render() {
   document.getElementById("content").innerHTML = renderContent(activeTab);
   attachEvents();
   if (activeTab === "travels") mountKoreaMap();
+
+  // The tab bar's HTML is fully rebuilt every render, which resets its
+  // horizontal scroll to the start — keep the active tab visible instead of
+  // letting the bar jump back to the beginning each time.
+  const activeTabBtn = root.querySelector(".tab-btn.active");
+  if (activeTabBtn) activeTabBtn.scrollIntoView({ inline: "nearest", block: "nearest" });
 }
 
 function renderTabs() {

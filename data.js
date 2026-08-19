@@ -200,5 +200,7 @@ const INITIAL_DATA = {
         ["피아노 콰르텟 1번 g단조, Op.25", "1. Allegro", "2. Intermezzo. Allegro, ma non troppo - Trio. Animato", "3. Andante con moto", "4. Rondo all Zingarese. Presto"]
       ]
     }
-  ]
+  ],
+
+  exhibitions: []
 };

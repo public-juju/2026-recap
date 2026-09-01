@@ -249,10 +249,11 @@ function posterGradient(title) {
 }
 
 function posterBlock(item, emoji) {
+  const fallback = `<span class="poster-fallback-text" style="display:none;">${emoji}<br>${escapeHtml(item.title)}</span>`;
   if (item.poster) {
-    return `<img src="${escapeAttr(item.poster)}" alt="" onerror="this.style.display='none'">`;
+    return `<img src="${escapeAttr(item.poster)}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">${fallback}`;
   }
-  return `<span>${emoji}<br>${escapeHtml(item.title)}</span>`;
+  return `<span class="poster-fallback-text">${emoji}<br>${escapeHtml(item.title)}</span>`;
 }
 
 // Give each broadcaster/channel its own consistent shade from the site's blue
@@ -671,7 +672,7 @@ function renderGrid(items, key, emoji, bcLabel, castLabel) {
 }
 
 function mediaCard(item, key, emoji, bcLabel, castLabel) {
-  const bg = item.poster ? "" : `style="background:${posterGradient(item.title)}"`;
+  const bg = `style="background:${posterGradient(item.title)}"`;
   const bc = item.broadcaster ? broadcasterColor(item.broadcaster) : null;
   return `
   <div class="stub" data-card-id="${item.id}">
@@ -695,7 +696,7 @@ function renderMoviesTab() {
 }
 
 function movieCard(item) {
-  const bg = item.poster ? "" : `style="background:${posterGradient(item.title)}"`;
+  const bg = `style="background:${posterGradient(item.title)}"`;
   const badgeColor = item.type === "OTT" ? "#8b5cf6" : "#0d9488";
   return `
   <div class="stub" data-card-id="${item.id}">
@@ -880,7 +881,7 @@ function renderPerformancesTab() {
 }
 
 function perfCard(p) {
-  const bg = p.poster ? "" : `style="background:${posterGradient(p.title)}"`;
+  const bg = `style="background:${posterGradient(p.title)}"`;
   const tagColor = p.solo ? "#f59e0b" : "#0ea5e9";
   return `
   <div class="stub" data-card-id="${p.id}">
@@ -905,7 +906,7 @@ function renderExhibitionsTab() {
 }
 
 function exhibitionCard(p) {
-  const bg = p.poster ? "" : `style="background:${posterGradient(p.title)}"`;
+  const bg = `style="background:${posterGradient(p.title)}"`;
   const tagColor = p.solo ? "#f59e0b" : "#0ea5e9";
   return `
   <div class="stub" data-card-id="${p.id}">
@@ -1265,9 +1266,10 @@ function openDetailPopup(key, id) {
   if (!item) return;
 
   const emoji = key === "movies" ? "🎬" : key === "performances" ? "🎫" : key === "exhibitions" ? "🖼️" : "📺";
+  const posterFallbackHtml = `<div class="popup-poster-fallback" style="width:100%;aspect-ratio:2/3;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;text-align:center;padding:16px;background:${posterGradient(item.title)};${item.poster ? "display:none;" : ""}">${emoji}<br>${escapeHtml(item.title)}</div>`;
   const posterHtml = item.poster
-    ? `<img src="${escapeAttr(item.poster)}" alt="" style="width:100%;border-radius:12px;margin-bottom:14px;display:block;" onerror="this.style.display='none'">`
-    : `<div style="width:100%;aspect-ratio:2/3;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;text-align:center;padding:16px;background:${posterGradient(item.title)}">${emoji}<br>${escapeHtml(item.title)}</div>`;
+    ? `<img src="${escapeAttr(item.poster)}" alt="" style="width:100%;border-radius:12px;margin-bottom:14px;display:block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">${posterFallbackHtml}`
+    : posterFallbackHtml;
 
   let metaHtml = "";
   let bodyText = "";

@@ -1,0 +1,28 @@
+name: Supabase Keepalive
+
+# Supabase pauses free-tier projects after ~7 days with no real database
+# activity. This pings the project's REST API every day so it never gets
+# close to that limit, regardless of how often the app itself is used.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # every day at 03:00 UTC
+  workflow_dispatch: {}     # lets you trigger it manually from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: https://iytyrrjgldnmkaizkumd.supabase.co
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5dHlycmpnbGRubWthaXprdW1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3OTIzMTEsImV4cCI6MjEwMDM2ODMxMX0.a3MOceCMy2-2HAXpcg3ehzAZvh3qDE9qIEotSUOuE9Y
+        run: |
+          http_code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/recap_items?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "Supabase responded with HTTP $http_code"
+          if [ "$http_code" -ge 400 ]; then
+            echo "::warning::Supabase ping failed with HTTP $http_code — project may be paused or misconfigured."
+          fi
